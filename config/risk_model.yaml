@@ -1,0 +1,57 @@
+scoring:
+  weights:
+    cvss_base: 0.3
+    kev_active: 0.4
+    asset_criticality: 0.2
+    epss_score: 0.1
+  kev_multiplier: 2.0
+  severity_thresholds:
+    critical: 8.0
+    high: 6.0
+    medium: 4.0
+    low: 0.0
+asset_criticality:
+  production: 5
+  staging: 3
+  development: 1
+  unknown: 2
+sla_days:
+  critical: 15
+  high: 30
+  medium: 90
+  low: 180
+nist_csf_mapping:
+  network:
+  - ID.AM-1
+  - PR.IP-12
+  - DE.CM-8
+  - RS.MI-3
+  application:
+  - PR.IP-2
+  - DE.CM-4
+  - RS.MI-3
+  code:
+  - PR.IP-2
+  - DE.CM-4
+  configuration:
+  - PR.IP-1
+  - PR.IP-3
+  - DE.CM-7
+cis_controls_mapping:
+  network:
+  - CIS-7
+  - CIS-12
+  application:
+  - CIS-7
+  - CIS-16
+  code:
+  - CIS-16
+  configuration:
+  - CIS-4
+  - CIS-7
+connectors:
+  tenable: true
+  qualys: true
+  sast: false
+  dast: false
+  sca: false

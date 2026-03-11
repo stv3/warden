@@ -1,0 +1,54 @@
+# ── Warden HTTPS override ─────────────────────────────────────────────────────
+# Extends docker-compose.yml with Let's Encrypt TLS termination.
+#
+# Prerequisites:
+#   1. Set WARDEN_DOMAIN and CERTBOT_EMAIL in .env
+#   2. Run ./init-letsencrypt.sh once to provision the first certificate
+#   3. Then start with:  docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+# Cert renewal runs automatically inside the certbot container every 12 hours.
+# nginx reloads its config every 24 hours to pick up renewed certificates.
+
+services:
+  ui:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      # The .template file is processed by envsubst on container start;
+      # ${WARDEN_DOMAIN} is substituted from the environment variable below.
+      - ./nginx.https.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    environment:
+      - WARDEN_DOMAIN
+    # Reload nginx every 24 h to pick up renewed certificates
+    command: >
+      /bin/sh -c "
+        while :; do
+          sleep 24h &
+          wait $${!};
+          nginx -s reload;
+        done &
+        nginx -g 'daemon off;'
+      "
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    # Attempt renewal every 12 hours; certbot skips if cert is not due yet
+    entrypoint: >
+      /bin/sh -c "
+        trap exit TERM;
+        while :; do
+          certbot renew --webroot --webroot-path=/var/www/certbot --quiet;
+          sleep 12h & wait $${!};
+        done
+      "
+
+volumes:
+  certbot_conf:
+  certbot_www:

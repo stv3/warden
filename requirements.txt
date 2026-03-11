@@ -1,0 +1,42 @@
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Database
+sqlalchemy==2.0.36
+alembic==1.13.3
+psycopg2-binary==2.9.9
+
+# Task queue
+celery==5.4.0
+redis==5.1.1
+
+# HTTP client
+httpx==0.27.2
+
+# Data validation
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# Config
+python-dotenv==1.0.1
+pyyaml==6.0.2
+
+# Utils
+tenacity==9.0.0
+python-dateutil==2.9.0
+
+# Connectors
+tenable==5.5.0
+
+# Security / Auth
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.12
+
+# Security (XML parsing)
+defusedxml==0.7.1
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2

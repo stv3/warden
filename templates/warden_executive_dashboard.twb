@@ -1,0 +1,674 @@
+<?xml version='1.0' encoding='utf-8' ?>
+
+<!-- Warden Executive Dashboard - Tableau Workbook Template
+     Generated for use with Warden Vulnerability Orchestrator
+     Data source: /api/export/tableau/findings.csv
+
+     Setup:
+     1. Open this file in Tableau Desktop (2020.1+)
+     2. Update the data source connection to point to your Warden CSV export
+        OR use the Web Data Connector with your /api/export/tableau/findings.csv endpoint
+     3. Refresh data and publish to Tableau Server/Cloud
+-->
+<workbook source-build='2023.1.0' source-platform='mac' version='21.2' xmlns:user='http://www.tableausoftware.com/xml/user'>
+  <preferences>
+    <color-palette name='Warden Severity' type='ordered-sequential'>
+      <color>#D73027</color>
+      <color>#FC8D59</color>
+      <color>#FEE090</color>
+      <color>#91BFDB</color>
+    </color-palette>
+  </preferences>
+  <datasources>
+    <datasource caption='Warden Findings' inline='true' name='warden_findings' version='21.2'>
+      <connection class='textscan' filename='warden-findings.csv' interpreter='' locale='en_US' separator=',' server='' >
+        <relation name='warden-findings.csv' table='[warden-findings#csv]' type='table' />
+        <metadata-records>
+          <metadata-record class='column'>
+            <remote-name>id</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[id]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>id</remote-alias>
+            <ordinal>0</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>cve_id</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[cve_id]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>cve_id</remote-alias>
+            <ordinal>1</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>title</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[title]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>title</remote-alias>
+            <ordinal>2</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>severity</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[severity]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>severity</remote-alias>
+            <ordinal>3</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>risk_score</remote-name>
+            <remote-type>5</remote-type>
+            <local-name>[risk_score]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>risk_score</remote-alias>
+            <ordinal>4</ordinal>
+            <local-type>real</local-type>
+            <aggregation>Sum</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>cvss_score</remote-name>
+            <remote-type>5</remote-type>
+            <local-name>[cvss_score]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>cvss_score</remote-alias>
+            <ordinal>5</ordinal>
+            <local-type>real</local-type>
+            <aggregation>Average</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>epss_score</remote-name>
+            <remote-type>5</remote-type>
+            <local-name>[epss_score]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>epss_score</remote-alias>
+            <ordinal>6</ordinal>
+            <local-type>real</local-type>
+            <aggregation>Average</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>in_kev</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[in_kev]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>in_kev</remote-alias>
+            <ordinal>7</ordinal>
+            <local-type>boolean</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>kev_due_date</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[kev_due_date]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>kev_due_date</remote-alias>
+            <ordinal>8</ordinal>
+            <local-type>date</local-type>
+            <aggregation>Year</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>asset_name</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[asset_name]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>asset_name</remote-alias>
+            <ordinal>9</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>asset_ip</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[asset_ip]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>asset_ip</remote-alias>
+            <ordinal>10</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>asset_environment</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[asset_environment]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>asset_environment</remote-alias>
+            <ordinal>11</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>asset_criticality</remote-name>
+            <remote-type>5</remote-type>
+            <local-name>[asset_criticality]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>asset_criticality</remote-alias>
+            <ordinal>12</ordinal>
+            <local-type>real</local-type>
+            <aggregation>Average</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>sources</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[sources]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>sources</remote-alias>
+            <ordinal>13</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>finding_type</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[finding_type]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>finding_type</remote-alias>
+            <ordinal>14</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>status</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[status]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>status</remote-alias>
+            <ordinal>15</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>owner</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[owner]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>owner</remote-alias>
+            <ordinal>16</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>sla_due_date</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[sla_due_date]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>sla_due_date</remote-alias>
+            <ordinal>17</ordinal>
+            <local-type>date</local-type>
+            <aggregation>Year</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>first_seen</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[first_seen]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>first_seen</remote-alias>
+            <ordinal>18</ordinal>
+            <local-type>datetime</local-type>
+            <aggregation>Year</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>last_seen</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[last_seen]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>last_seen</remote-alias>
+            <ordinal>19</ordinal>
+            <local-type>datetime</local-type>
+            <aggregation>Year</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>resolved_at</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[resolved_at]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>resolved_at</remote-alias>
+            <ordinal>20</ordinal>
+            <local-type>datetime</local-type>
+            <aggregation>Year</aggregation>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>remediation_action</remote-name>
+            <remote-type>7</remote-type>
+            <local-name>[remediation_action]</local-name>
+            <parent-name>[warden-findings#csv]</parent-name>
+            <remote-alias>remediation_action</remote-alias>
+            <ordinal>21</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+          </metadata-record>
+        </metadata-records>
+      </connection>
+
+      <!-- Calculated Fields -->
+
+      <!-- Risk Band: categorical grouping of risk_score -->
+      <column caption='Risk Band' datatype='string' default-role='dimension' default-type='nominal' name='[Risk Band]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='IF [risk_score] >= 80 THEN "Critical Risk"
+ELSEIF [risk_score] >= 60 THEN "High Risk"
+ELSEIF [risk_score] >= 40 THEN "Medium Risk"
+ELSEIF [risk_score] >= 20 THEN "Low Risk"
+ELSE "Informational"
+END' />
+      </column>
+
+      <!-- KEV Urgency: prioritization combining KEV flag and SLA overdue status -->
+      <column caption='KEV Urgency' datatype='string' default-role='dimension' default-type='nominal' name='[KEV Urgency]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='IF [in_kev] = TRUE AND NOT ISNULL([kev_due_date]) AND [kev_due_date] &lt; TODAY() THEN "OVERDUE - KEV"
+ELSEIF [in_kev] = TRUE AND NOT ISNULL([kev_due_date]) AND DATEDIFF(&apos;day&apos;, TODAY(), [kev_due_date]) &lt;= 7 THEN "Due This Week - KEV"
+ELSEIF [in_kev] = TRUE AND NOT ISNULL([kev_due_date]) AND DATEDIFF(&apos;day&apos;, TODAY(), [kev_due_date]) &lt;= 30 THEN "Due This Month - KEV"
+ELSEIF [in_kev] = TRUE THEN "KEV - No Due Date"
+ELSE "Not in KEV"
+END' />
+      </column>
+
+      <!-- Days Open: age of the finding -->
+      <column caption='Days Open' datatype='integer' default-role='measure' default-type='quantitative' name='[Days Open]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='IF NOT ISNULL([resolved_at]) THEN DATEDIFF(&apos;day&apos;, DATE([first_seen]), DATE([resolved_at]))
+ELSE DATEDIFF(&apos;day&apos;, DATE([first_seen]), TODAY())
+END' />
+      </column>
+
+      <!-- Age Category: bucket findings by age -->
+      <column caption='Age Category' datatype='string' default-role='dimension' default-type='nominal' name='[Age Category]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='IF [Days Open] &lt;= 7 THEN "0-7 days"
+ELSEIF [Days Open] &lt;= 30 THEN "8-30 days"
+ELSEIF [Days Open] &lt;= 90 THEN "31-90 days"
+ELSEIF [Days Open] &lt;= 180 THEN "91-180 days"
+ELSE "180+ days"
+END' />
+      </column>
+
+      <!-- SLA Status: derived from sla_due_date -->
+      <column caption='SLA Status' datatype='string' default-role='dimension' default-type='nominal' name='[SLA Status]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='IF ISNULL([sla_due_date]) THEN "No SLA"
+ELSEIF [sla_due_date] &lt; TODAY() AND [status] != "resolved" THEN "Overdue"
+ELSEIF DATEDIFF(&apos;day&apos;, TODAY(), [sla_due_date]) &lt;= 7 THEN "Due This Week"
+ELSE "On Track"
+END' />
+      </column>
+
+      <!-- Is Active: open or in_progress -->
+      <column caption='Is Active' datatype='boolean' default-role='dimension' default-type='nominal' name='[Is Active]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='[status] = &quot;open&quot; OR [status] = &quot;in_progress&quot;' />
+      </column>
+
+      <!-- Severity Order: for sorting -->
+      <column caption='Severity Order' datatype='integer' default-role='measure' default-type='quantitative' name='[Severity Order]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='CASE [severity]
+WHEN "critical" THEN 1
+WHEN "high" THEN 2
+WHEN "medium" THEN 3
+WHEN "low" THEN 4
+ELSE 5
+END' />
+      </column>
+
+    </datasource>
+  </datasources>
+
+  <worksheets>
+
+    <!-- Sheet 1: Severity Distribution (Pie Chart) -->
+    <worksheet name='Severity Distribution'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows />
+        <cols />
+        <shelf-sorts>
+          <shelf-sort-v2 dimension-measure='measure' direction='ASC' is-active='true' measure='[warden_findings].[Severity Order]' output-field-ordinal='0' shelf='color' />
+        </shelf-sorts>
+        <panes>
+          <pane>
+            <mark class='Pie' />
+            <encodings>
+              <color>
+                <field caption='Severity' datatype='string' name='[warden_findings].[severity]' role='dimension' type='nominal' />
+                <palette name='Warden Severity' />
+              </color>
+              <angle>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </angle>
+              <label>
+                <field caption='Severity' datatype='string' name='[warden_findings].[severity]' role='dimension' type='nominal' />
+              </label>
+              <size>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </size>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 2: KEV Risk Matrix (Bar Chart - KEV Urgency by Severity) -->
+    <worksheet name='KEV Risk Matrix'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[KEV Urgency]</rows>
+        <cols>[warden_findings].[Number of Records]</cols>
+        <panes>
+          <pane>
+            <mark class='Bar' />
+            <encodings>
+              <color>
+                <field caption='Severity' datatype='string' name='[warden_findings].[severity]' role='dimension' type='nominal' />
+              </color>
+              <label>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </label>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[in_kev]'>
+            <groupfilter function='member' level='[warden_findings].[in_kev]' member='true' />
+          </filter>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 3: SLA Heatmap (Environment x Severity) -->
+    <worksheet name='SLA Compliance Heatmap'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[asset_environment]</rows>
+        <cols>[warden_findings].[severity]</cols>
+        <panes>
+          <pane>
+            <mark class='Square' />
+            <encodings>
+              <color>
+                <field caption='SLA Status' datatype='string' name='[warden_findings].[SLA Status]' role='dimension' type='nominal' />
+              </color>
+              <size>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </size>
+              <label>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </label>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 4: Top Assets at Risk (Horizontal Bar) -->
+    <worksheet name='Top Assets at Risk'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[asset_name]</rows>
+        <cols>[warden_findings].[risk_score]</cols>
+        <panes>
+          <pane>
+            <mark class='Bar' />
+            <encodings>
+              <color>
+                <field caption='Severity' datatype='string' name='[warden_findings].[severity]' role='dimension' type='nominal' />
+              </color>
+              <label>
+                <field caption='AVG(risk_score)' datatype='real' formula='AVG' name='[warden_findings].[risk_score]' role='measure' type='quantitative' />
+              </label>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+        <sorts>
+          <sort column='[warden_findings].[risk_score]' direction='DESC' using='field' />
+        </sorts>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 5: Environment Exposure (Stacked Bar) -->
+    <worksheet name='Environment Exposure'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[Number of Records]</rows>
+        <cols>[warden_findings].[asset_environment]</cols>
+        <panes>
+          <pane>
+            <mark class='Bar' />
+            <encodings>
+              <color>
+                <field caption='Severity' datatype='string' name='[warden_findings].[severity]' role='dimension' type='nominal' />
+              </color>
+              <label>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </label>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 6: Findings by Type (Bar) -->
+    <worksheet name='Findings by Type'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[finding_type]</rows>
+        <cols>[warden_findings].[Number of Records]</cols>
+        <panes>
+          <pane>
+            <mark class='Bar' />
+            <encodings>
+              <color>
+                <field caption='Risk Band' datatype='string' name='[warden_findings].[Risk Band]' role='dimension' type='nominal' />
+              </color>
+              <label>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </label>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 7: Risk Score Trend Over Time (Line) -->
+    <worksheet name='Risk Trend Over Time'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[risk_score]</rows>
+        <cols>[warden_findings].[first_seen]</cols>
+        <panes>
+          <pane>
+            <mark class='Line' />
+            <encodings>
+              <color>
+                <field caption='Severity' datatype='string' name='[warden_findings].[severity]' role='dimension' type='nominal' />
+              </color>
+            </encodings>
+          </pane>
+        </panes>
+      </table>
+    </worksheet>
+
+    <!-- Sheet 8: Owner Accountability (Horizontal Bar) -->
+    <worksheet name='Owner Accountability'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Warden Findings' name='warden_findings' />
+          </datasources>
+          <aggregation value='true'/>
+        </view>
+        <rows>[warden_findings].[owner]</rows>
+        <cols>[warden_findings].[Number of Records]</cols>
+        <panes>
+          <pane>
+            <mark class='Bar' />
+            <encodings>
+              <color>
+                <field caption='SLA Status' datatype='string' name='[warden_findings].[SLA Status]' role='dimension' type='nominal' />
+              </color>
+              <label>
+                <field caption='Number of Records' datatype='integer' name='[warden_findings].[Number of Records]' role='measure' type='quantitative' />
+              </label>
+            </encodings>
+          </pane>
+        </panes>
+        <filters>
+          <filter class='categorical' column='[warden_findings].[Is Active]'>
+            <groupfilter function='member' level='[warden_findings].[Is Active]' member='true' />
+          </filter>
+        </filters>
+        <sorts>
+          <sort column='[warden_findings].[Number of Records]' direction='DESC' using='field' />
+        </sorts>
+      </table>
+    </worksheet>
+
+  </worksheets>
+
+  <dashboards>
+
+    <!-- Dashboard 1: Executive Overview -->
+    <dashboard name='Executive Overview'>
+      <style />
+      <size maxheight='2000' maxwidth='1800' minheight='600' minwidth='800' />
+      <zones>
+        <zone h='12000' id='1' type='layout-flow' w='48000' x='0' y='0'>
+          <zone-style>
+            <format attr='border-color' field='0' value='#000000' />
+            <format attr='border-style' field='0' value='none' />
+            <format attr='border-width' field='0' value='0' />
+            <format attr='background-color' field='0' value='#1f2937' />
+          </zone-style>
+          <!-- Title Banner -->
+          <zone h='1500' id='2' type='text' w='48000' x='0' y='0'>
+            <zone-style>
+              <format attr='background-color' field='0' value='#111827' />
+            </zone-style>
+            <formatted-text>
+              <run bold='true' fontsize='18' fontcolor='#FFFFFF'>Warden Vulnerability Management — Executive Overview</run>
+            </formatted-text>
+          </zone>
+          <!-- Row 1: Severity Distribution + KEV Risk Matrix -->
+          <zone h='5000' id='3' type='layout-flow-horiz' w='48000' x='0' y='1500'>
+            <zone h='5000' id='4' name='Severity Distribution' type='worksheet' w='24000' x='0' y='1500' />
+            <zone h='5000' id='5' name='KEV Risk Matrix' type='worksheet' w='24000' x='24000' y='1500' />
+          </zone>
+          <!-- Row 2: Environment Exposure + SLA Heatmap -->
+          <zone h='5500' id='6' type='layout-flow-horiz' w='48000' x='0' y='6500'>
+            <zone h='5500' id='7' name='Environment Exposure' type='worksheet' w='24000' x='0' y='6500' />
+            <zone h='5500' id='8' name='SLA Compliance Heatmap' type='worksheet' w='24000' x='24000' y='6500' />
+          </zone>
+        </zone>
+      </zones>
+      <devicelayouts>
+        <devicelayout auto='true' name='Phone'>
+          <size maxheight='2000' maxwidth='1000' minheight='400' minwidth='320' sizing-mode='vscroll' />
+        </devicelayout>
+      </devicelayouts>
+    </dashboard>
+
+    <!-- Dashboard 2: Asset & Operations -->
+    <dashboard name='Asset and Operations'>
+      <style />
+      <size maxheight='2000' maxwidth='1800' minheight='600' minwidth='800' />
+      <zones>
+        <zone h='12000' id='10' type='layout-flow' w='48000' x='0' y='0'>
+          <!-- Title Banner -->
+          <zone h='1500' id='11' type='text' w='48000' x='0' y='0'>
+            <zone-style>
+              <format attr='background-color' field='0' value='#111827' />
+            </zone-style>
+            <formatted-text>
+              <run bold='true' fontsize='18' fontcolor='#FFFFFF'>Warden Vulnerability Management — Asset &amp; Operations</run>
+            </formatted-text>
+          </zone>
+          <!-- Row 1: Top Assets + Findings by Type -->
+          <zone h='5000' id='12' type='layout-flow-horiz' w='48000' x='0' y='1500'>
+            <zone h='5000' id='13' name='Top Assets at Risk' type='worksheet' w='24000' x='0' y='1500' />
+            <zone h='5000' id='14' name='Findings by Type' type='worksheet' w='24000' x='24000' y='1500' />
+          </zone>
+          <!-- Row 2: Risk Trend + Owner Accountability -->
+          <zone h='5500' id='15' type='layout-flow-horiz' w='48000' x='0' y='6500'>
+            <zone h='5500' id='16' name='Risk Trend Over Time' type='worksheet' w='24000' x='0' y='6500' />
+            <zone h='5500' id='17' name='Owner Accountability' type='worksheet' w='24000' x='24000' y='6500' />
+          </zone>
+        </zone>
+      </zones>
+    </dashboard>
+
+  </dashboards>
+
+  <!-- Global Filters available on dashboards -->
+  <windows>
+    <window class='dashboard' maximized='true' name='Executive Overview'>
+      <simple-id uuid='{00000001-0000-0000-0000-000000000001}' />
+    </window>
+    <window class='dashboard' name='Asset and Operations'>
+      <simple-id uuid='{00000001-0000-0000-0000-000000000002}' />
+    </window>
+  </windows>
+
+</workbook>

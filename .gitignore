@@ -1,0 +1,78 @@
+# ── Secrets — NEVER commit these ──────────────────────────────────────────────
+.env
+*.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+pip-wheel-metadata/
+*.whl
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml
+!requirements*.txt
+
+# ── Node / Frontend ────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ── Scanner report files (local dev only) ─────────────────────────────────────
+bandit_results.json
+semgrep_results.json
+zap_report.xml
+zap_report.json
+zap_*.json
+zap_*.html
+
+# ── SQLite test / dev databases ────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Generated mock / export data ──────────────────────────────────────────────
+warden-findings-mock.csv
+warden-findings.csv
+warden-kev-summary.csv
+
+# ── Alembic ────────────────────────────────────────────────────────────────────
+alembic/versions/*.pyc
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── One-off scripts (dev only) ────────────────────────────────────────────────
+run_manual_test.py
+run_appsec_test.py
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store

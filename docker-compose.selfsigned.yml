@@ -20,6 +20,5 @@ services:
       - "443:443"
       - "80:80"    # kept for HTTP→HTTPS redirect
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
       - ./nginx.selfsigned.conf:/etc/nginx/conf.d/default.conf:ro
       - ./ssl/selfsigned:/etc/nginx/ssl:ro

@@ -15,7 +15,6 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
       # The .template file is processed by envsubst on container start;
       # ${WARDEN_DOMAIN} is substituted from the environment variable below.
       - ./nginx.https.conf.template:/etc/nginx/templates/default.conf.template:ro

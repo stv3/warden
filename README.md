@@ -34,9 +34,9 @@ Warden connects to your existing scanners, merges their output into one deduplic
 | Capability | Detail |
 |---|---|
 | **Multi-scanner ingestion** | Nessus, Tenable.io, Qualys VMDR, Rapid7 InsightVM, Microsoft Defender, CrowdStrike Falcon |
-| **AppSec connectors** | SAST (Semgrep), SCA (pip-audit / npm audit), DAST (OWASP ZAP) |
+| **AppSec connectors** | SAST (Semgrep / Bandit), SARIF (CodeQL, Checkmarx, ESLint Security…), SCA (pip-audit / npm audit), DAST (OWASP ZAP / Burp Suite / Nuclei), Containers & IaC (Trivy) |
 | **Deduplication** | One finding per CVE/asset pair, regardless of how many scanners reported it |
-| **Threat enrichment** | CISA KEV catalog (auto-synced daily), EPSS scores, NVD metadata |
+| **Threat enrichment** | CISA KEV catalog (auto-synced daily), EPSS scores, NVD metadata, GreyNoise CVE intelligence (internet-wide scanning activity) |
 | **SSVC prioritization** | CISA decision tree: Exploitation × Automatable × Technical Impact → Immediate / Act / Attend / Track |
 | **Risk scoring** | Configurable 6-factor model (see Risk model below) |
 | **SLA tracking** | Configurable deadlines per severity with overdue alerting |
@@ -177,8 +177,9 @@ All settings are environment variables. Copy `.env.example` to `.env` to get sta
                                           └─────────────────────┘
 
 Connectors: Nessus · Tenable.io · Qualys · Rapid7 · Defender · CrowdStrike
-            Semgrep (SAST) · pip-audit / npm audit (SCA) · OWASP ZAP (DAST)
-Feeds:      CISA KEV catalog · EPSS (FIRST.org) · NVD API
+            Semgrep / Bandit (SAST) · SARIF (CodeQL, Checkmarx…) · pip-audit (SCA)
+            OWASP ZAP / Burp Suite / Nuclei (DAST) · Trivy (containers/IaC)
+Feeds:      CISA KEV catalog · EPSS (FIRST.org) · NVD API · GreyNoise
 Integrations: Jira · Slack
 ```
 

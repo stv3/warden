@@ -51,7 +51,7 @@ Warden connects to your existing scanners, merges their output into one deduplic
 Requires [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
 ```bash
-git clone https://github.com/your-org/warden.git
+git clone https://github.com/stv3/warden.git
 cd warden
 
 # 1. Configure environment
@@ -272,6 +272,31 @@ Tableau and Power BI templates are in `templates/`:
 - **Headers** — HSTS, CSP, X-Frame-Options, X-Content-Type-Options set by nginx
 
 To report a vulnerability, open a GitHub issue marked `[security]` or contact the maintainers directly.
+
+---
+
+## Troubleshooting
+
+**`docker compose up` exits immediately / API won't start**
+Check that `.env` exists and `WARDEN_SECRET_KEY`, `AUTH_PASSWORD`, and `POSTGRES_PASSWORD` are all set. In production mode Warden will refuse to start with missing or default credentials.
+
+**Browser shows "connection refused" on localhost**
+Wait ~10 seconds after `docker compose up` for Postgres to pass its health check before the API starts. Run `docker compose ps` to confirm all services are `healthy`.
+
+**Self-signed certificate browser warning**
+This is expected — you need to trust the cert once. See the output of `./scripts/generate-selfsigned-cert.sh` for OS-specific trust commands (macOS Keychain / Linux `update-ca-certificates`).
+
+**Celery worker not processing jobs**
+Run `docker compose logs worker` — if you see Redis connection errors, confirm `REDIS_URL=redis://redis:6379/0` (not `localhost`) in your `.env`.
+
+**`psycopg2.errors.UndefinedColumn` on new columns after upgrading**
+Warden doesn't use Alembic migrations. After pulling new code that adds model columns, run the `ALTER TABLE` statements from the commit message against your database:
+```bash
+docker compose exec db psql -U vuln vuln_orchestrator
+```
+
+**NVD enrichment is slow**
+Get a free NVD API key at https://nvd.nist.gov/developers/request-an-api-key and set `NVD_API_KEY=` in `.env`. It raises the rate limit from 5 to 50 requests per 30 seconds.
 
 ---
 

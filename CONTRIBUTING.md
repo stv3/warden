@@ -2,6 +2,12 @@
 
 Thank you for your interest in contributing! This guide covers the basics.
 
+## Requirements
+
+- **Python 3.11+** (3.12 recommended) — check with `python3 --version`
+- **Node 18+** — check with `node --version`
+- **Docker + Docker Compose** — for running Postgres and Redis locally
+
 ## Getting started
 
 1. Fork the repo and clone your fork

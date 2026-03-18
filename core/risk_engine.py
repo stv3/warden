@@ -7,6 +7,7 @@ from typing import Optional
 import httpx
 
 from models.finding import Finding
+from core.ssvc_engine import ssvc_to_norm
 
 logger = logging.getLogger(__name__)
 
@@ -14,13 +15,17 @@ logger = logging.getLogger(__name__)
 class RiskEngine:
     """
     Calculates the composite risk score for each finding.
-    Replaces CVSS-only scoring with context-aware risk that reflects
-    actual business impact and exploitability.
+    Incorporates six dimensions for holistic, context-aware prioritization:
 
-    Score formula:
-        base = (cvss * w_cvss) + (kev * w_kev) + (criticality_norm * w_asset) + (epss * w_epss)
-        final = base * kev_multiplier (if in KEV)
-        normalized to 0-10 scale
+      Score = (cvss   × w_cvss)
+            + (kev    × w_kev)
+            + (criti  × w_asset)
+            + (epss   × w_epss)
+            + (ssvc   × w_ssvc)
+            + (exploit× w_exploit)
+
+    KEV multiplier applied on top if actively exploited.
+    Final score normalized to 0–10 scale.
     """
 
     def __init__(self, config_path: str = "config/risk_model.yaml"):
@@ -35,25 +40,29 @@ class RiskEngine:
     def score_finding(self, finding: Finding) -> Finding:
         """Calculates and sets risk_score, severity, sla_due_date, and compliance mappings."""
 
-        # Normalize each component to 0-1
+        # Normalize each component to 0–1
         cvss_norm = (finding.cvss_score or 0) / 10.0
         kev_norm = 1.0 if finding.in_kev else 0.0
         criticality_norm = (finding.asset_criticality or 2) / 5.0
         epss_norm = finding.epss_score or 0.0
+        ssvc_norm = ssvc_to_norm(finding.ssvc_decision)
+        exploit_norm = 1.0 if finding.has_public_exploit else 0.0
 
         # Weighted sum
         score = (
-            cvss_norm * self._weights["cvss_base"] +
-            kev_norm * self._weights["kev_active"] +
-            criticality_norm * self._weights["asset_criticality"] +
-            epss_norm * self._weights["epss_score"]
+            cvss_norm    * self._weights.get("cvss_base", 0.20) +
+            kev_norm     * self._weights.get("kev_active", 0.25) +
+            criticality_norm * self._weights.get("asset_criticality", 0.15) +
+            epss_norm    * self._weights.get("epss_score", 0.15) +
+            ssvc_norm    * self._weights.get("ssvc_priority", 0.15) +
+            exploit_norm * self._weights.get("exploit_available", 0.10)
         )
 
-        # KEV multiplier — being actively exploited changes everything
+        # KEV multiplier — active exploitation in the wild changes everything
         if finding.in_kev:
             score = min(score * self._kev_multiplier, 1.0)
 
-        # Scale to 0-10
+        # Scale to 0–10
         finding.risk_score = round(score * 10, 2)
 
         # Derive severity from score
@@ -86,6 +95,10 @@ class RiskEngine:
         # KEV due date takes priority over internal SLA
         if finding.in_kev and finding.kev_due_date:
             return finding.kev_due_date
+
+        # SSVC Immediate findings get critical SLA regardless of derived severity
+        if finding.ssvc_decision == "Immediate":
+            return date.today() + timedelta(days=self._sla_days.get("critical", 15))
 
         days = self._sla_days.get(finding.severity, 90)
         return date.today() + timedelta(days=days)

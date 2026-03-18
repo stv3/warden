@@ -19,6 +19,8 @@ from connectors.dast import DASTConnector
 from core.deduplicator import upsert_findings
 from core.kev_matcher import KEVMatcher
 from core.risk_engine import RiskEngine, EPSSEnricher
+from core.ssvc_engine import SSVCEngine
+from connectors.nvd import NVDEnricher
 from orchestrator.alert_manager import AlertManager
 from orchestrator.ticket_manager import TicketManager
 from config.settings import settings
@@ -37,6 +39,8 @@ class IngestionPipeline:
         self._kev_client = KEVClient()
         self._risk_engine = RiskEngine()
         self._epss = EPSSEnricher()
+        self._ssvc = SSVCEngine()
+        self._nvd = NVDEnricher(api_key=getattr(settings, "nvd_api_key", None))
         self._alert_manager = AlertManager()
         self._ticket_manager = TicketManager()
 
@@ -76,7 +80,18 @@ class IngestionPipeline:
                 "total_in_kev": kev_result.total_in_kev,
             }
 
-            # 6. Risk scoring for all open findings
+            # 5b. NVD enrichment — CWE, published date, patch availability, attack vector
+            all_open = self._get_open_findings()
+            self._nvd.enrich(all_open)
+            self._db.commit()
+            results["nvd_enriched"] = len([f for f in all_open if f.cwe_id or f.nvd_published_date])
+
+            # 5c. SSVC scoring — compute prioritization decision for each finding
+            self._ssvc.score_all(all_open)
+            self._db.commit()
+            results["ssvc_scored"] = len([f for f in all_open if f.ssvc_decision])
+
+            # 6. Risk scoring for all open findings (uses SSVC + exploit signals now)
             all_open = self._get_open_findings()
             self._risk_engine.score_all(all_open)
             self._db.commit()
@@ -113,8 +128,9 @@ class IngestionPipeline:
             kev_matcher = KEVMatcher(self._db, self._kev_client)
             kev_result = kev_matcher.run()
 
-            # Re-score findings whose KEV status changed
+            # Re-score findings whose KEV status changed (includes SSVC update)
             if kev_result.newly_matched:
+                self._ssvc.score_all(kev_result.newly_matched)
                 self._risk_engine.score_all(kev_result.newly_matched)
                 self._db.commit()
                 self._alert_manager.send_kev_alert(kev_result.newly_matched)

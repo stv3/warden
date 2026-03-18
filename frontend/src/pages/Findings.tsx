@@ -178,10 +178,11 @@ function DetailPanel({
         </div>
 
         <div className="flex-1 p-6 space-y-5">
-          <div className="grid grid-cols-3 gap-3">
+          {/* Score grid */}
+          <div className="grid grid-cols-4 gap-2">
             <div className="bg-slate-50 rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-slate-900">{finding.risk_score.toFixed(1)}</div>
-              <div className="text-xs text-slate-500">Risk Score</div>
+              <div className="text-xs text-slate-500">Risk</div>
             </div>
             <div className="bg-slate-50 rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-slate-900">
@@ -195,7 +196,55 @@ function DetailPanel({
               </div>
               <div className="text-xs text-slate-500">EPSS</div>
             </div>
+            <div className={`rounded-lg p-3 text-center ${
+              finding.ssvc_decision === 'Immediate' ? 'bg-red-50' :
+              finding.ssvc_decision === 'Act' ? 'bg-orange-50' :
+              finding.ssvc_decision === 'Attend' ? 'bg-yellow-50' :
+              'bg-green-50'
+            }`}>
+              <div className={`text-sm font-bold ${
+                finding.ssvc_decision === 'Immediate' ? 'text-red-700' :
+                finding.ssvc_decision === 'Act' ? 'text-orange-700' :
+                finding.ssvc_decision === 'Attend' ? 'text-yellow-700' :
+                'text-green-700'
+              }`}>{finding.ssvc_decision ?? '—'}</div>
+              <div className="text-xs text-slate-500">SSVC</div>
+            </div>
           </div>
+
+          {/* SSVC section */}
+          {finding.ssvc_decision && (
+            <div className={`rounded-lg p-4 border ${
+              finding.ssvc_decision === 'Immediate' ? 'bg-red-50 border-red-200' :
+              finding.ssvc_decision === 'Act' ? 'bg-orange-50 border-orange-200' :
+              finding.ssvc_decision === 'Attend' ? 'bg-yellow-50 border-yellow-200' :
+              'bg-green-50 border-green-200'
+            }`}>
+              <h4 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1 text-slate-700">
+                SSVC Prioritization
+              </h4>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Decision</span>
+                  <span className="font-semibold">{finding.ssvc_decision}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Exploitation</span>
+                  <span className={`font-medium ${
+                    finding.ssvc_exploitation === 'Active' ? 'text-red-600' :
+                    finding.ssvc_exploitation === 'PoC' ? 'text-orange-600' :
+                    'text-slate-600'
+                  }`}>{finding.ssvc_exploitation ?? 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Public Exploit</span>
+                  <span className={finding.has_public_exploit ? 'text-red-600 font-medium' : 'text-slate-600'}>
+                    {finding.has_public_exploit ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div>
             <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Asset</h4>
@@ -224,6 +273,53 @@ function DetailPanel({
               </div>
             </div>
           </div>
+
+          {/* NVD enrichment data */}
+          {(finding.cwe_id || finding.nvd_published_date || finding.attack_vector) && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">NVD Details</h4>
+              <div className="space-y-1.5 text-sm">
+                {finding.cwe_id && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Weakness (CWE)</span>
+                    <a
+                      href={`https://cwe.mitre.org/data/definitions/${finding.cwe_id.replace('CWE-', '')}.html`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                    >
+                      {finding.cwe_id}
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+                )}
+                {finding.attack_vector && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Attack Vector</span>
+                    <span className="font-medium text-slate-800">
+                      {finding.attack_vector === 'N' ? 'Network' :
+                       finding.attack_vector === 'A' ? 'Adjacent' :
+                       finding.attack_vector === 'L' ? 'Local' : 'Physical'}
+                    </span>
+                  </div>
+                )}
+                {finding.nvd_published_date && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Published</span>
+                    <span className="text-slate-700">
+                      {new Date(finding.nvd_published_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Patch Available</span>
+                  <span className={finding.patch_available ? 'text-green-600 font-medium' : 'text-slate-500'}>
+                    {finding.patch_available ? 'Yes' : 'Not confirmed'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {finding.in_kev && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -427,6 +523,8 @@ export default function Findings() {
   const [filterCis, setFilterCis] = useState('');
   const [filterMinRisk, setFilterMinRisk] = useState('');
   const [filterMaxRisk, setFilterMaxRisk] = useState('');
+  const [filterSSVC, setFilterSSVC] = useState('');
+  const [filterExploit, setFilterExploit] = useState('');
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [filterOptions, setFilterOptions] = useState<{
@@ -549,13 +647,15 @@ export default function Findings() {
     setFilterCis('');
     setFilterMinRisk('');
     setFilterMaxRisk('');
+    setFilterSSVC('');
+    setFilterExploit('');
     setPage(0);
   };
 
   const advancedCount = [
     filterEnv, filterKev, filterSource, filterFindingType, filterSlaStatus,
     filterAssetName, filterCveId, filterOwner, filterNist, filterCis,
-    filterMinRisk, filterMaxRisk,
+    filterMinRisk, filterMaxRisk, filterSSVC, filterExploit,
   ].filter(Boolean).length;
 
   const hasFilters = filterStatus !== 'open' || filterSeverity || advancedCount > 0;
@@ -707,6 +807,20 @@ export default function Findings() {
                 placeholder="email or username..."
               />
 
+              <FilterSelect label="SSVC Decision" value={filterSSVC} onChange={(v) => { setFilterSSVC(v); resetPage(); }}>
+                <option value="">All Decisions</option>
+                <option value="Immediate">Immediate</option>
+                <option value="Act">Act</option>
+                <option value="Attend">Attend</option>
+                <option value="Track">Track</option>
+              </FilterSelect>
+
+              <FilterSelect label="Public Exploit" value={filterExploit} onChange={(v) => { setFilterExploit(v); resetPage(); }}>
+                <option value="">All</option>
+                <option value="true">Has Public Exploit</option>
+                <option value="false">No Public Exploit</option>
+              </FilterSelect>
+
               <FilterInput
                 label="NIST CSF Control"
                 value={filterNist}
@@ -789,6 +903,9 @@ export default function Findings() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
                   Sources
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                  SSVC
+                </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer hover:text-slate-700 whitespace-nowrap"
                   onClick={() => handleSort('risk_score')}
@@ -814,7 +931,7 @@ export default function Findings() {
               {loading
                 ? skeletonRows.map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 9 }).map((__, j) => (
+                      {Array.from({ length: 10 }).map((__, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="skeleton h-4 w-full" />
                         </td>
@@ -824,7 +941,7 @@ export default function Findings() {
                 : sortedFindings.length === 0
                 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={10} className="px-4 py-12 text-center text-slate-400 text-sm">
                         No findings match the current filters
                       </td>
                     </tr>
@@ -879,6 +996,20 @@ export default function Findings() {
                               </span>
                             ))}
                           </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {f.ssvc_decision ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                              f.ssvc_decision === 'Immediate' ? 'bg-red-100 text-red-700' :
+                              f.ssvc_decision === 'Act' ? 'bg-orange-100 text-orange-700' :
+                              f.ssvc_decision === 'Attend' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-green-100 text-green-700'
+                            }`}>
+                              {f.ssvc_decision}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-sm font-semibold text-slate-800">

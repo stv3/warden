@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from api.routes.auth import (
     get_current_user,
     _create_access_token,
+    _check_rate_limit,
     SECRET_KEY,
     ALGORITHM,
     AUTH_USERNAME,
@@ -112,10 +113,14 @@ def get_me(
 
 @router.post("/password", response_model=ChangePasswordResponse)
 def change_password(
+    request: Request,
     body: ChangePasswordRequest,
     current_user: str = Depends(get_current_user),
 ):
     """Change the admin password. Writes the new value to .env."""
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_ip)
+
     if len(body.new_password) < 12:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -20,6 +20,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { getConnectors, testConnector, saveConnectorConfig, uploadConnectorFile, getConnectorUploads } from '../api';
+import { RefreshCw } from 'lucide-react';
 import type { ConnectorStatus, ConnectorField, ConnectorsResponse } from '../types';
 
 // ── Category metadata ──────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ function ConfigForm({
     Object.fromEntries(connector.fields.map((f) => [f.key, f.current_value]))
   );
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const handleSave = async () => {
@@ -124,14 +126,37 @@ function ConfigForm({
     setResult(null);
     try {
       await saveConnectorConfig(connector.name, values);
-      setResult({ ok: true, msg: 'Saved. Restart the API server for changes to take full effect.' });
-      onSaved();
+
+      if (connector.testable) {
+        setResult({ ok: true, msg: 'Saved. Testing connection…' });
+        setSaving(false);
+        setTesting(true);
+        try {
+          const r = await testConnector(connector.name);
+          setResult({
+            ok: r.success,
+            msg: r.success
+              ? 'Saved — connection verified successfully.'
+              : `Saved, but connection test failed: ${r.message}`,
+          });
+        } catch {
+          setResult({ ok: false, msg: 'Saved, but connection test failed — check credentials.' });
+        } finally {
+          setTesting(false);
+          onSaved();
+        }
+      } else {
+        setResult({ ok: true, msg: 'Saved.' });
+        setSaving(false);
+        onSaved();
+      }
     } catch (e: unknown) {
       setResult({ ok: false, msg: e instanceof Error ? e.message : 'Save failed' });
-    } finally {
       setSaving(false);
     }
   };
+
+  const busy = saving || testing;
 
   return (
     <div className="border-t border-slate-100 pt-4 mt-2 space-y-3">
@@ -157,18 +182,30 @@ function ConfigForm({
               : 'bg-red-50 text-red-700 border border-red-200'
           }`}
         >
-          {result.ok ? <CheckCircle2 size={13} className="flex-shrink-0 mt-0.5" /> : <XCircle size={13} className="flex-shrink-0 mt-0.5" />}
+          {testing ? (
+            <Loader2 size={13} className="flex-shrink-0 mt-0.5 animate-spin" />
+          ) : result.ok ? (
+            <CheckCircle2 size={13} className="flex-shrink-0 mt-0.5" />
+          ) : (
+            <XCircle size={13} className="flex-shrink-0 mt-0.5" />
+          )}
           {result.msg}
         </div>
       )}
 
       <button
         onClick={handleSave}
-        disabled={saving}
+        disabled={busy}
         className="flex items-center gap-2 text-sm font-medium px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg disabled:opacity-60 transition-colors"
       >
-        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-        Save credentials
+        {saving ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : testing ? (
+          <RefreshCw size={14} className="animate-spin" />
+        ) : (
+          <Save size={14} />
+        )}
+        {testing ? 'Testing…' : 'Save credentials'}
       </button>
     </div>
   );
@@ -416,13 +453,8 @@ function ConnectorCard({
         {connector.testable && (
           <button
             onClick={handleTest}
-            disabled={testing || !connector.configured}
-            title={!connector.configured ? 'Configure credentials first' : undefined}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-              connector.configured
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                : 'bg-slate-50 text-slate-300 cursor-not-allowed'
-            }`}
+            disabled={testing}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-50"
           >
             {testing ? <Loader2 size={12} className="animate-spin" /> : <FlaskConical size={12} />}
             Test connection
@@ -478,9 +510,8 @@ export default function Connectors() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Connectors</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Connect Warden to your security tools. Credentials are saved to{' '}
-            <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">.env</code>{' '}
-            and take effect immediately (full restart recommended for production).
+            Connect Warden to your security tools. Credentials are saved and applied immediately —
+            testable connectors are verified automatically after saving.
           </p>
         </div>
         {data && (

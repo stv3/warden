@@ -1,68 +1,140 @@
-# Warden — Open Source Vulnerability Orchestrator
+<div align="center">
 
-Warden aggregates findings from multiple vulnerability scanners, enriches them with CISA KEV data, deduplicates across sources, and surfaces a prioritized, actionable view through a clean dashboard and REST API.
+# Warden
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-green)
-![React](https://img.shields.io/badge/React-18-blue)
+**Open-source vulnerability management orchestrator**
+
+Aggregate findings from every scanner you run, deduplicate across sources, enrich with real-world threat context, and surface a single prioritized list — so your team remediates what matters most, not just what scanned last.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688)](https://fastapi.tiangolo.com/)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB)](https://react.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)](https://docs.docker.com/compose/)
+
+</div>
+
+---
+
+## Why Warden?
+
+Most organizations run 3–5 vulnerability scanners. Each one produces its own findings list, its own severity ratings, its own duplicates. Triaging that noise manually doesn't scale.
+
+Warden connects to your existing scanners, merges their output into one deduplicated view, and scores each finding using six signals — CVSS, CISA KEV status, EPSS, SSVC decision, exploit availability, and asset criticality — so your security team has a clear, defensible answer to "fix this first."
 
 ---
 
 ## What it does
 
-- **Aggregates** findings from Nessus, Tenable.io, Qualys, Rapid7, Microsoft Defender, CrowdStrike, SAST, SCA, and DAST (ZAP)
-- **Deduplicates** the same vulnerability across scanners so you see one finding per CVE/asset pair
-- **Enriches** every finding with CISA KEV status, EPSS scores, NIST CSF + CIS Controls mappings
-- **Scores risk** using a configurable model that weights CVSS, asset criticality, KEV status, and EPSS
-- **Tracks SLA** compliance per severity with overdue alerting
-- **Exports** to Tableau and Power BI via CSV endpoint (Tableau template and Power BI guide included)
-- **Integrates** with Jira for automatic ticket creation and Slack for KEV alerts
-- Ships with a **React dashboard** — no BI tool required
+| Capability | Detail |
+|---|---|
+| **Multi-scanner ingestion** | Nessus, Tenable.io, Qualys VMDR, Rapid7 InsightVM, Microsoft Defender, CrowdStrike Falcon |
+| **AppSec connectors** | SAST (Semgrep), SCA (pip-audit / npm audit), DAST (OWASP ZAP) |
+| **Deduplication** | One finding per CVE/asset pair, regardless of how many scanners reported it |
+| **Threat enrichment** | CISA KEV catalog (auto-synced daily), EPSS scores, NVD metadata |
+| **SSVC prioritization** | CISA decision tree: Exploitation × Automatable × Technical Impact → Immediate / Act / Attend / Track |
+| **Risk scoring** | Configurable 6-factor model (see Risk model below) |
+| **SLA tracking** | Configurable deadlines per severity with overdue alerting |
+| **Ticketing & alerts** | Jira auto-ticket creation · Slack KEV alerts |
+| **Export** | CSV endpoint compatible with Tableau and Power BI (templates included) |
+| **REST API** | Full API with Swagger UI — integrate with any SOAR or workflow |
 
 ---
 
-## Quick start (Docker)
+## Quick start
 
-The fastest path. Requires Docker and Docker Compose.
+Requires [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
 ```bash
 git clone https://github.com/your-org/warden.git
 cd warden
 
-# 1. Configure
+# 1. Configure environment
 cp .env.example .env
-#    Edit .env — at minimum set WARDEN_SECRET_KEY, AUTH_PASSWORD, and DB passwords.
+#    Edit .env — set WARDEN_SECRET_KEY, AUTH_PASSWORD, and database passwords
 #    Generate a secret key:
 python3 -c "import secrets; print(secrets.token_hex(32))"
 
-# 2. Start
+# 2. Start everything (Postgres + Redis + API + Worker + UI)
 docker compose up -d
 
-# 3. Open
+# 3. Open the dashboard
 open http://localhost
-#    Login: admin / (the AUTH_PASSWORD you set in .env)
+#    Login: admin / <AUTH_PASSWORD you set>
 ```
 
-That's it. Postgres and Redis are included in the compose file.
+Postgres and Redis are included in the compose file — no external dependencies.
+
+### HTTPS (self-signed, for private/internal networks)
+
+```bash
+# Generate a self-signed certificate
+./scripts/generate-selfsigned-cert.sh          # defaults to localhost
+./scripts/generate-selfsigned-cert.sh 192.168.1.50  # or an IP/hostname
+
+# Start with HTTPS
+docker compose -f docker-compose.yml -f docker-compose.selfsigned.yml up -d
+```
+
+For internet-accessible deployments with a real domain, use `docker-compose.https.yml` + `init-letsencrypt.sh` (Let's Encrypt).
+
+---
+
+## Dashboard
+
+The React dashboard ships built-in — no separate BI tool required.
+
+**Findings** — filter by severity, scanner, SSVC decision, exploit availability, owner, and date range. Drill into any finding for full NVD details, CWE classification, and remediation context.
+
+**Risk metrics** — SSVC distribution, exploit availability breakdown, top CWEs by exposure, attack vector analysis, SLA compliance trends, and mean time to remediate.
+
+**Pipeline** — trigger scanner ingestion, monitor job status, and view enrichment results in real time.
+
+> Screenshots: run the demo seed script (`docker compose exec api python scripts/seed_demo_data.py`) to populate 60 realistic findings and see the full dashboard.
+
+---
+
+## Risk model
+
+Warden scores each finding on a 0–100 scale using six factors:
+
+| Signal | Weight | Source |
+|---|---|---|
+| CVSS base score | 20% | Scanner / NVD |
+| CISA KEV status | 25% | CISA KEV catalog (daily sync) |
+| Asset criticality | 15% | Configured per asset (1–5) |
+| SSVC decision | 15% | Derived from KEV + EPSS + CVSS vector |
+| EPSS score | 10% | FIRST.org daily feed |
+| Public exploit available | 10% | NVD reference tags |
+
+**SSVC decisions** map to remediation urgency:
+
+| Decision | Meaning | SLA |
+|---|---|---|
+| Immediate | Active exploitation + automatable + total impact | Critical SLA |
+| Act | Active exploitation or high-probability PoC | High priority |
+| Attend | PoC available or partially automatable | Standard SLA |
+| Track | No known exploitation path | Normal backlog |
+
+Tune the weights for your environment in `config/risk_model.yaml`.
 
 ---
 
 ## Configuration
 
-All configuration is via environment variables in `.env`. Copy `.env.example` to get started.
+All settings are environment variables. Copy `.env.example` to `.env` to get started.
 
-| Variable | Required | Description |
-|---|---|---|
-| `WARDEN_SECRET_KEY` | **Yes** | JWT signing key — generate with `secrets.token_hex(32)` |
-| `AUTH_USERNAME` | No | Login username (default: `admin`) |
-| `AUTH_PASSWORD` | **Yes** | Login password — **change the default** |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `REDIS_URL` | Yes | Redis connection string |
+**Required:**
 
-Scanner credentials (all optional — only configure what you use):
+| Variable | Description |
+|---|---|
+| `WARDEN_SECRET_KEY` | JWT signing key — generate with `secrets.token_hex(32)` |
+| `AUTH_PASSWORD` | Dashboard login password |
+| `POSTGRES_PASSWORD` / `DATABASE_URL` | Database credentials |
 
-| Variable | Scanner |
+**Scanner credentials** (configure only what you use):
+
+| Variable(s) | Scanner |
 |---|---|
 | `NESSUS_URL`, `NESSUS_USERNAME`, `NESSUS_PASSWORD` | Nessus (self-hosted) |
 | `TENABLE_ACCESS_KEY`, `TENABLE_SECRET_KEY` | Tenable.io |
@@ -72,41 +144,7 @@ Scanner credentials (all optional — only configure what you use):
 | `CROWDSTRIKE_CLIENT_ID`, `CROWDSTRIKE_CLIENT_SECRET` | CrowdStrike Falcon |
 | `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY` | Jira ticketing |
 | `SLACK_WEBHOOK_URL` | Slack KEV alerts |
-
-See `.env.example` for all options with descriptions.
-
----
-
-## Local development (without Docker)
-
-Requires Python 3.11+, Node 18+, PostgreSQL, and Redis.
-
-```bash
-# Backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # fill in .env
-uvicorn api.main:app --reload --port 8000
-
-# Frontend (separate terminal)
-cd frontend
-npm install
-npm run dev        # Vite dev server at http://localhost:5173
-```
-
-The Vite dev server proxies `/api`, `/auth`, and `/health` to `http://localhost:8000`.
-
----
-
-## Generate mock data
-
-To explore the UI without real scanner credentials:
-
-```bash
-python generate_mock_data.py
-# Writes warden-findings-mock.csv in the current directory
-# Import via Settings → Connectors → File-based sources
-```
+| `NVD_API_KEY` | NVD API (optional — increases rate limit from 5 to 50 req/30s) |
 
 ---
 
@@ -114,17 +152,17 @@ python generate_mock_data.py
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         React Dashboard                         │
-│               (Vite + TypeScript + Tailwind CSS)                │
+│                       React Dashboard                           │
+│             (Vite + TypeScript + Tailwind CSS)                  │
 └────────────────────────────┬────────────────────────────────────┘
                              │ REST / JSON
 ┌────────────────────────────▼────────────────────────────────────┐
-│                     FastAPI (Python 3.11)                       │
+│                   FastAPI  (Python 3.11)                        │
 │  /api/findings   /api/metrics   /api/pipeline   /api/export     │
-└──────────┬──────────────────────────────────────────┬──────────-┘
+└──────────┬──────────────────────────────────────────┬───────────┘
            │                                          │
 ┌──────────▼──────────┐                   ┌──────────▼──────────┐
-│     PostgreSQL      │                   │    Celery Workers   │
+│     PostgreSQL      │                   │   Celery Workers    │
 │  (findings, KEV)    │                   │  (pipeline, alerts) │
 └─────────────────────┘                   └──────────┬──────────┘
                                                      │
@@ -134,8 +172,8 @@ python generate_mock_data.py
                                           └─────────────────────┘
 
 Connectors: Nessus · Tenable.io · Qualys · Rapid7 · Defender · CrowdStrike
-            SAST (Semgrep) · SCA (pip-audit/npm audit) · DAST (ZAP)
-Feeds:      CISA KEV catalog (auto-synced daily)
+            Semgrep (SAST) · pip-audit / npm audit (SCA) · OWASP ZAP (DAST)
+Feeds:      CISA KEV catalog · EPSS (FIRST.org) · NVD API
 Integrations: Jira · Slack
 ```
 
@@ -143,46 +181,52 @@ Integrations: Jira · Slack
 
 ## API
 
-The REST API is fully documented at `http://localhost:8000/docs` (Swagger UI) after startup.
+The full API is documented at `http://localhost:8000/docs` (Swagger UI). To enable in production set `WARDEN_DOCS_ENABLED=true` in `.env`.
 
 Key endpoints:
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/findings/` | List findings with filters |
-| `GET` | `/api/findings/{id}` | Get single finding |
-| `PATCH` | `/api/findings/{id}/status` | Update status / owner |
+| `POST` | `/auth/token` | Get a JWT token |
+| `GET` | `/api/findings/` | List findings (filter by severity, CVE, SSVC, owner…) |
+| `PATCH` | `/api/findings/{id}/status` | Update status or owner |
 | `GET` | `/api/metrics/kev-exposure` | KEV exposure summary |
+| `GET` | `/api/metrics/ssvc-distribution` | SSVC decision breakdown |
+| `GET` | `/api/metrics/exploit-stats` | Exploit availability stats |
 | `GET` | `/api/metrics/sla-compliance` | SLA compliance by severity |
 | `GET` | `/api/metrics/mttr` | Mean time to remediate |
-| `GET` | `/api/metrics/risk-trend` | Risk score trend over time |
 | `POST` | `/api/pipeline/run` | Trigger ingestion pipeline |
 | `GET` | `/api/export/tableau/findings.csv` | Full findings export |
 
-All endpoints require `Authorization: Bearer <token>`. Get a token at `POST /auth/token`.
+All endpoints require `Authorization: Bearer <token>`.
 
 ---
 
-## BI Templates
+## Try it with demo data
 
-Tableau and Power BI templates are in `templates/`:
+No scanner credentials? Populate 60 realistic findings (Log4Shell, MOVEit, PAN-OS, and others) to explore the full dashboard:
 
-- `warden_executive_dashboard.twb` — Tableau workbook with 8 worksheets and 2 dashboards (Executive Overview + Asset & Operations)
-- `warden_powerbi_setup.md` — Power BI setup guide with Power Query M script, DAX measures, and recommended layout
+```bash
+docker compose exec api python scripts/seed_demo_data.py
+```
 
 ---
 
-## Risk model
+## Local development
 
-Warden scores each finding on a 0–100 scale combining:
+Requires Python 3.11+, Node 18+, PostgreSQL, and Redis.
 
-- CVSS base score (weighted by version)
-- Asset criticality (1–5, production = 5)
-- KEV status (+bonus for active exploitation)
-- EPSS score (exploit prediction)
-- SLA age (penalty for overdue findings)
+```bash
+# Backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # fill in values
+uvicorn api.main:app --reload --port 8000
 
-Edit `config/risk_model.yaml` to tune the weights for your environment.
+# Frontend (separate terminal)
+cd frontend && npm install && npm run dev
+# Vite dev server at http://localhost:5173 — proxies /api, /auth, /health to :8000
+```
 
 ---
 
@@ -190,36 +234,48 @@ Edit `config/risk_model.yaml` to tune the weights for your environment.
 
 ```bash
 pip install -r requirements.txt
-pytest                  # all tests
-pytest tests/ -v        # verbose
-pytest --tb=short       # compact failures
+pytest               # all tests
+pytest tests/ -v     # verbose
 ```
 
 Tests use SQLite in-memory — no Postgres or Redis required.
 
 ---
 
-## Connectors
+## Adding a connector
 
-Warden ships with connectors for:
+Inherit from `connectors.base.BaseConnector` and implement `fetch_findings()`. The pipeline picks it up automatically. See any existing connector in `connectors/` as a reference.
 
-| Category | Connector |
-|---|---|
-| Network scanner | Nessus, Tenable.io, Qualys VMDR, Rapid7 InsightVM |
-| Endpoint | Microsoft Defender for Endpoint, CrowdStrike Falcon Spotlight |
-| App security | SAST (Semgrep), SCA (pip-audit / npm audit), DAST (OWASP ZAP) |
-| Threat feed | CISA KEV catalog |
+---
 
-Each connector normalizes findings to a common schema before deduplication and enrichment. See `connectors/` to add your own — inherit from `connectors.base.BaseConnector`.
+## BI templates
+
+Tableau and Power BI templates are in `templates/`:
+
+- `warden_executive_dashboard.twb` — Tableau workbook with 8 worksheets (Executive Overview + Asset & Operations dashboards)
+- `warden_powerbi_setup.md` — Power BI setup guide with Power Query M script, DAX measures, and recommended layout
+
+---
+
+## Security
+
+- **HTTPS** — self-signed cert generator included; Let's Encrypt overlay for public deployments
+- **Authentication** — JWT with configurable expiry and brute-force rate limiting
+- **Startup checks** — Warden refuses to start in production with default or weak credentials
+- **CORS** — explicit origin allowlist (no wildcards)
+- **Input validation** — CVE IDs and owner fields validated on all write endpoints
+- **Headers** — HSTS, CSP, X-Frame-Options, X-Content-Type-Options set by nginx
+
+To report a vulnerability, open a GitHub issue marked `[security]` or contact the maintainers directly.
 
 ---
 
 ## Contributing
 
-Pull requests are welcome. See `CONTRIBUTING.md` for guidelines.
+Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
 ## License
 
-MIT
+[MIT](LICENSE)

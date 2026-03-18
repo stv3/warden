@@ -27,7 +27,7 @@ tenacity==9.0.0
 python-dateutil==2.9.0
 
 # Connectors
-tenable==5.5.0
+pytenable==1.9.0
 
 # Security / Auth
 python-jose[cryptography]==3.3.0

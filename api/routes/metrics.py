@@ -204,6 +204,137 @@ def scanner_coverage(
     }
 
 
+@router.get("/ssvc-distribution")
+def ssvc_distribution(
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """SSVC decision distribution across open findings."""
+    open_findings = (
+        db.query(Finding.ssvc_decision, func.count(Finding.id))
+        .filter(Finding.status.in_(["open", "in_progress"]))
+        .group_by(Finding.ssvc_decision)
+        .all()
+    )
+
+    decision_order = ["Immediate", "Act", "Attend", "Track"]
+    counts = {d: 0 for d in decision_order}
+    counts[None] = 0
+
+    for decision, count in open_findings:
+        key = decision if decision in decision_order else "unscored"
+        counts[key] = counts.get(key, 0) + count
+
+    total = sum(counts.values())
+
+    return {
+        "total": total,
+        "distribution": {
+            d: {
+                "count": counts.get(d, 0),
+                "percentage": round(counts.get(d, 0) / total * 100, 1) if total else 0,
+            }
+            for d in decision_order
+        },
+        "unscored": counts.get("unscored", 0),
+    }
+
+
+@router.get("/exploit-stats")
+def exploit_stats(
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Public exploit and patch availability statistics."""
+    total_open = db.query(func.count(Finding.id)).filter(
+        Finding.status.in_(["open", "in_progress"])
+    ).scalar()
+
+    with_exploit = db.query(func.count(Finding.id)).filter(
+        Finding.status.in_(["open", "in_progress"]),
+        Finding.has_public_exploit == True,
+    ).scalar()
+
+    by_exploitation = (
+        db.query(Finding.ssvc_exploitation, func.count(Finding.id))
+        .filter(Finding.status.in_(["open", "in_progress"]))
+        .group_by(Finding.ssvc_exploitation)
+        .all()
+    )
+
+    with_patch = db.query(func.count(Finding.id)).filter(
+        Finding.status.in_(["open", "in_progress"]),
+        Finding.patch_available == True,
+    ).scalar()
+
+    exploit_no_patch = db.query(func.count(Finding.id)).filter(
+        Finding.status.in_(["open", "in_progress"]),
+        Finding.has_public_exploit == True,
+        Finding.patch_available == False,
+    ).scalar()
+
+    return {
+        "total_open": total_open,
+        "with_public_exploit": with_exploit,
+        "exploit_percentage": round(with_exploit / total_open * 100, 1) if total_open else 0,
+        "exploitation_status": dict(by_exploitation),
+        "with_patch_available": with_patch,
+        "exploit_no_patch": exploit_no_patch,
+    }
+
+
+@router.get("/top-cwe")
+def top_cwe(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Top CWE weakness categories across open findings."""
+    results = (
+        db.query(Finding.cwe_id, func.count(Finding.id).label("count"))
+        .filter(
+            Finding.status.in_(["open", "in_progress"]),
+            Finding.cwe_id.isnot(None),
+        )
+        .group_by(Finding.cwe_id)
+        .order_by(func.count(Finding.id).desc())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "top_cwe": [{"cwe_id": cwe, "count": count} for cwe, count in results]
+    }
+
+
+@router.get("/attack-vector-breakdown")
+def attack_vector_breakdown(
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Open findings grouped by attack vector (Network/Adjacent/Local/Physical)."""
+    results = (
+        db.query(Finding.attack_vector, func.count(Finding.id))
+        .filter(Finding.status.in_(["open", "in_progress"]))
+        .group_by(Finding.attack_vector)
+        .all()
+    )
+
+    labels = {"N": "Network", "A": "Adjacent", "L": "Local", "P": "Physical", None: "Unknown"}
+    total = sum(count for _, count in results)
+
+    return {
+        "total": total,
+        "by_vector": {
+            labels.get(av, av or "Unknown"): {
+                "count": count,
+                "percentage": round(count / total * 100, 1) if total else 0,
+            }
+            for av, count in results
+        },
+    }
+
+
 @router.get("/risk-trend")
 def risk_trend(
     days: int = Query(default=30, ge=1, le=365),

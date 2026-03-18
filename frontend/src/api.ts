@@ -13,6 +13,10 @@ import type {
   AuthToken,
   ConnectorsResponse,
   ConnectorTestResult,
+  SSVCDistribution,
+  ExploitStats,
+  TopCWE,
+  AttackVectorBreakdown,
 } from './types';
 
 // Empty string = relative URLs → Vite proxy in dev, nginx in production.
@@ -212,6 +216,26 @@ export async function getRiskTrend(days = 30): Promise<RiskTrendPoint[]> {
       total:          Object.values(counts).reduce((s, v) => s + v, 0),
       risk_score_avg: 0,
     }));
+}
+
+export async function getSSVCDistribution(): Promise<SSVCDistribution> {
+  const res = await fetch(`${BASE_URL}/api/metrics/ssvc-distribution`, { headers: authHeaders() });
+  return handleResponse<SSVCDistribution>(res);
+}
+
+export async function getExploitStats(): Promise<ExploitStats> {
+  const res = await fetch(`${BASE_URL}/api/metrics/exploit-stats`, { headers: authHeaders() });
+  return handleResponse<ExploitStats>(res);
+}
+
+export async function getTopCWE(limit = 10): Promise<TopCWE> {
+  const res = await fetch(`${BASE_URL}/api/metrics/top-cwe?limit=${limit}`, { headers: authHeaders() });
+  return handleResponse<TopCWE>(res);
+}
+
+export async function getAttackVectorBreakdown(): Promise<AttackVectorBreakdown> {
+  const res = await fetch(`${BASE_URL}/api/metrics/attack-vector-breakdown`, { headers: authHeaders() });
+  return handleResponse<AttackVectorBreakdown>(res);
 }
 
 // Pipeline

@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     # EPSS
     epss_api_url: str = "https://api.first.org/data/v1/epss"
 
+    # NVD (National Vulnerability Database)
+    # Optional API key — without it, NVD rate-limits to 5 req/30s (fine for small batches).
+    # Get a free key at https://nvd.nist.gov/developers/request-an-api-key
+    nvd_api_key: Optional[str] = None
+
     # Jira
     jira_url: Optional[str] = None
     jira_username: Optional[str] = None

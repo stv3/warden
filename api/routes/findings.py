@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import cast, or_
@@ -18,6 +19,11 @@ VALID_SEVERITIES = {"critical", "high", "medium", "low"}
 VALID_ENVIRONMENTS = {"production", "staging", "development", "unknown"}
 VALID_FINDING_TYPES = {"network", "application", "code", "configuration", "dependency"}
 VALID_SLA_STATUSES = {"overdue", "due_soon", "ok", "none"}
+
+# CVE-YYYY-NNNNN format  (4-digit year, 4+ digit ID)
+_CVE_RE = re.compile(r'^CVE-\d{4}-\d{4,}$', re.IGNORECASE)
+# Owner: email address or simple identifier (alphanumeric, dots, dashes, underscores, @)
+_OWNER_RE = re.compile(r'^[\w.@+\-]{1,200}$')
 
 
 @router.get("/filter-options")
@@ -113,8 +119,9 @@ def list_findings(
         query = query.filter(Finding.risk_score <= max_risk_score)
 
     if cve_id:
-        if len(cve_id) > 30:
-            raise HTTPException(status_code=400, detail="cve_id filter too long")
+        cve_id = cve_id.strip().upper()
+        if not _CVE_RE.match(cve_id):
+            raise HTTPException(status_code=400, detail="Invalid CVE ID format. Expected CVE-YYYY-NNNNN")
         query = query.filter(Finding.cve_id.ilike(f"%{cve_id}%"))
 
     if asset_name:
@@ -128,8 +135,8 @@ def list_findings(
         )
 
     if owner:
-        if len(owner) > 200:
-            raise HTTPException(status_code=400, detail="owner filter too long")
+        if not _OWNER_RE.match(owner):
+            raise HTTPException(status_code=400, detail="Invalid owner format")
         query = query.filter(Finding.owner.ilike(f"%{owner}%"))
 
     if sla_status:
@@ -217,7 +224,10 @@ def update_status(
 
     finding.status = body.status
     if body.owner is not None:
-        finding.owner = body.owner
+        owner_val = body.owner.strip()
+        if owner_val and not _OWNER_RE.match(owner_val):
+            raise HTTPException(status_code=400, detail="Invalid owner format")
+        finding.owner = owner_val or None
     if body.status == "resolved":
         finding.resolved_at = datetime.now(timezone.utc)
 
@@ -255,4 +265,13 @@ def _serialize(f: Finding) -> dict:
         "first_seen": f.first_seen.isoformat() if f.first_seen else None,
         "last_seen": f.last_seen.isoformat() if f.last_seen else None,
         "resolved_at": f.resolved_at.isoformat() if f.resolved_at else None,
+        # SSVC prioritization
+        "ssvc_decision": f.ssvc_decision,
+        "ssvc_exploitation": f.ssvc_exploitation,
+        "has_public_exploit": f.has_public_exploit,
+        # NVD enrichment
+        "cwe_id": f.cwe_id,
+        "nvd_published_date": str(f.nvd_published_date) if f.nvd_published_date else None,
+        "patch_available": f.patch_available,
+        "attack_vector": f.attack_vector,
     }

@@ -5,6 +5,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,6 +23,10 @@ import {
   Server,
   CheckCircle2,
   XCircle,
+  Zap,
+  Eye,
+  Bug,
+  Target,
 } from 'lucide-react';
 import {
   getKevExposure,
@@ -28,6 +34,10 @@ import {
   getSlaCompliance,
   getScannerCoverage,
   getRiskTrend,
+  getSSVCDistribution,
+  getExploitStats,
+  getTopCWE,
+  getAttackVectorBreakdown,
 } from '../api';
 import type {
   KevExposureMetric,
@@ -35,6 +45,10 @@ import type {
   SlaComplianceMetric,
   ScannerCoverage,
   RiskTrendPoint,
+  SSVCDistribution,
+  ExploitStats,
+  TopCWE,
+  AttackVectorBreakdown,
 } from '../types';
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -42,6 +56,20 @@ const SEVERITY_COLORS: Record<string, string> = {
   high: '#f97316',
   medium: '#eab308',
   low: '#60a5fa',
+};
+
+const SSVC_COLORS: Record<string, string> = {
+  Immediate: '#dc2626',
+  Act: '#f97316',
+  Attend: '#eab308',
+  Track: '#22c55e',
+};
+
+const SSVC_DESCRIPTIONS: Record<string, string> = {
+  Immediate: 'Active exploitation + automatable + full impact',
+  Act: 'Confirmed threat, remediate this sprint',
+  Attend: 'Relevant signal, schedule remediation',
+  Track: 'Low threat signal, monitor regularly',
 };
 
 function StatCard({
@@ -86,6 +114,20 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">{children}</h2>;
 }
 
+function SSVCBadge({ decision }: { decision: string }) {
+  const colors: Record<string, string> = {
+    Immediate: 'bg-red-100 text-red-700 border-red-200',
+    Act: 'bg-orange-100 text-orange-700 border-orange-200',
+    Attend: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    Track: 'bg-green-100 text-green-700 border-green-200',
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-semibold ${colors[decision] ?? 'bg-slate-100 text-slate-600'}`}>
+      {decision}
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const [kev, setKev] = useState<KevExposureMetric | null>(null);
   const [mttr, setMttr] = useState<MttrMetric[]>([]);
@@ -94,6 +136,10 @@ export default function Dashboard() {
   const [riskTrend, setRiskTrend] = useState<RiskTrendPoint[]>([]);
   const [severityCounts, setSeverityCounts] = useState<Record<string, number>>({});
   const [totalOpen, setTotalOpen] = useState<number>(0);
+  const [ssvc, setSSVC] = useState<SSVCDistribution | null>(null);
+  const [exploitStats, setExploitStats] = useState<ExploitStats | null>(null);
+  const [topCWE, setTopCWE] = useState<TopCWE | null>(null);
+  const [attackVectors, setAttackVectors] = useState<AttackVectorBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,21 +148,28 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       try {
-        const [kevData, mttrData, slaData, scanData, trendData] = await Promise.all([
-          getKevExposure(),
-          getMttr(90),
-          getSlaCompliance(),
-          getScannerCoverage(),
-          getRiskTrend(30),
-        ]);
+        const [kevData, mttrData, slaData, scanData, trendData, ssvcData, exploitData, cweData, vectorData] =
+          await Promise.all([
+            getKevExposure(),
+            getMttr(90),
+            getSlaCompliance(),
+            getScannerCoverage(),
+            getRiskTrend(30),
+            getSSVCDistribution(),
+            getExploitStats(),
+            getTopCWE(8),
+            getAttackVectorBreakdown(),
+          ]);
 
         setKev(kevData);
         setMttr(mttrData);
         setSla(slaData);
         setScanners(scanData);
         setRiskTrend(trendData);
-
-        // Use accurate open-by-severity counts from the kev-exposure endpoint
+        setSSVC(ssvcData);
+        setExploitStats(exploitData);
+        setTopCWE(cweData);
+        setAttackVectors(vectorData);
         setSeverityCounts(kevData.open_by_severity ?? {});
         setTotalOpen(kevData.total_findings);
       } catch (e) {
@@ -142,6 +195,34 @@ export default function Dashboard() {
 
   const totalDedupSavings = scanners.reduce((sum, s) => sum + (s.dedup_savings ?? 0), 0);
 
+  // SSVC bar chart data
+  const ssvcBarData = ssvc
+    ? ['Immediate', 'Act', 'Attend', 'Track'].map((d) => ({
+        name: d,
+        count: ssvc.distribution[d as keyof typeof ssvc.distribution]?.count ?? 0,
+        fill: SSVC_COLORS[d],
+      }))
+    : [];
+
+  // CWE bar data
+  const cweBarData = (topCWE?.top_cwe ?? []).map((c) => ({
+    name: c.cwe_id,
+    count: c.count,
+  }));
+
+  // Attack vector pie data
+  const vectorPieData = attackVectors
+    ? Object.entries(attackVectors.by_vector).map(([name, d]) => ({ name, value: d.count }))
+    : [];
+
+  const VECTOR_COLORS: Record<string, string> = {
+    Network: '#dc2626',
+    Adjacent: '#f97316',
+    Local: '#eab308',
+    Physical: '#60a5fa',
+    Unknown: '#94a3b8',
+  };
+
   return (
     <div>
       <div className="mb-6">
@@ -156,7 +237,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Row 1: Stat cards */}
+      {/* Row 1: Primary stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="Total Open Findings"
@@ -188,6 +269,46 @@ export default function Dashboard() {
           sub="Requires immediate attention"
           icon={<Clock size={18} className="text-yellow-600" />}
           accent="bg-yellow-50"
+          loading={loading}
+        />
+      </div>
+
+      {/* Row 1b: New intelligence stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <StatCard
+          label="SSVC Immediate"
+          value={ssvc?.distribution?.Immediate?.count.toLocaleString() ?? '—'}
+          sub="Active exploitation, act now"
+          icon={<Zap size={18} className="text-red-600" />}
+          accent="bg-red-50"
+          loading={loading}
+        />
+        <StatCard
+          label="Public Exploits"
+          value={exploitStats?.with_public_exploit.toLocaleString() ?? '—'}
+          sub={
+            exploitStats
+              ? `${exploitStats.exploit_percentage.toFixed(1)}% of open findings`
+              : undefined
+          }
+          icon={<Bug size={18} className="text-purple-600" />}
+          accent="bg-purple-50"
+          loading={loading}
+        />
+        <StatCard
+          label="Exploit, No Patch"
+          value={exploitStats?.exploit_no_patch.toLocaleString() ?? '—'}
+          sub="Public exploit with no vendor fix"
+          icon={<Target size={18} className="text-rose-600" />}
+          accent="bg-rose-50"
+          loading={loading}
+        />
+        <StatCard
+          label="Patch Available"
+          value={exploitStats?.with_patch_available.toLocaleString() ?? '—'}
+          sub="Vendor fix exists, awaiting deploy"
+          icon={<Eye size={18} className="text-green-600" />}
+          accent="bg-green-50"
           loading={loading}
         />
       </div>
@@ -225,9 +346,7 @@ export default function Dashboard() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [value.toLocaleString(), 'Findings']}
-                  />
+                  <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Findings']} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex flex-col gap-2 flex-1">
@@ -263,56 +382,148 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={trendFormatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                <Line
-                  type="monotone"
-                  dataKey="critical"
-                  stroke="#dc2626"
-                  strokeWidth={2}
-                  dot={false}
-                  name="Critical"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="high"
-                  stroke="#f97316"
-                  strokeWidth={2}
-                  dot={false}
-                  name="High"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="medium"
-                  stroke="#eab308"
-                  strokeWidth={2}
-                  dot={false}
-                  name="Medium"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="low"
-                  stroke="#60a5fa"
-                  strokeWidth={2}
-                  dot={false}
-                  name="Low"
-                />
+                <Line type="monotone" dataKey="critical" stroke="#dc2626" strokeWidth={2} dot={false} name="Critical" />
+                <Line type="monotone" dataKey="high" stroke="#f97316" strokeWidth={2} dot={false} name="High" />
+                <Line type="monotone" dataKey="medium" stroke="#eab308" strokeWidth={2} dot={false} name="Medium" />
+                <Line type="monotone" dataKey="low" stroke="#60a5fa" strokeWidth={2} dot={false} name="Low" />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
       </div>
 
-      {/* Row 3: KEV Exposure + MTTR */}
+      {/* Row 3: SSVC Priority + Exploit Signals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* SSVC Priority Distribution */}
+        <div className="card p-5">
+          <SectionTitle>SSVC Priority Distribution</SectionTitle>
+          <p className="text-xs text-slate-400 -mt-2 mb-3">
+            CISA's Stakeholder-Specific Vulnerability Categorization framework
+          </p>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-12" />)}
+            </div>
+          ) : !ssvc || ssvc.total === 0 ? (
+            <div className="h-40 flex items-center justify-center text-slate-400 text-sm">
+              No SSVC data — run the pipeline to score findings
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(['Immediate', 'Act', 'Attend', 'Track'] as const).map((decision) => {
+                const d = ssvc.distribution[decision];
+                if (!d) return null;
+                return (
+                  <div key={decision} className="flex items-center gap-3">
+                    <SSVCBadge decision={decision} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-500 truncate">{SSVC_DESCRIPTIONS[decision]}</span>
+                        <span className="text-xs font-semibold text-slate-700 ml-2 flex-shrink-0">{d.count.toLocaleString()}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full">
+                        <div
+                          className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${d.percentage}%`, backgroundColor: SSVC_COLORS[decision] }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-400 flex-shrink-0 w-10 text-right">
+                      {d.percentage.toFixed(0)}%
+                    </span>
+                  </div>
+                );
+              })}
+              {ssvc.unscored > 0 && (
+                <p className="text-xs text-slate-400 pt-1">{ssvc.unscored} findings not yet scored</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Exploitation Status Breakdown */}
+        <div className="card p-5">
+          <SectionTitle>Exploit Availability</SectionTitle>
+          <p className="text-xs text-slate-400 -mt-2 mb-3">
+            Confirmed active exploitation, public PoC, or no known exploit
+          </p>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <div key={i} className="skeleton h-16" />)}
+            </div>
+          ) : !exploitStats ? (
+            <div className="h-40 flex items-center justify-center text-slate-400 text-sm">
+              No exploit data available
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Active / PoC / None cards */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-red-50 rounded-lg p-3 text-center border border-red-100">
+                  <div className="text-xl font-bold text-red-700">
+                    {exploitStats.exploitation_status['Active'] ?? 0}
+                  </div>
+                  <div className="text-xs text-red-500 mt-0.5 font-medium">Active</div>
+                  <div className="text-xs text-red-400">KEV confirmed</div>
+                </div>
+                <div className="bg-orange-50 rounded-lg p-3 text-center border border-orange-100">
+                  <div className="text-xl font-bold text-orange-700">
+                    {exploitStats.exploitation_status['PoC'] ?? 0}
+                  </div>
+                  <div className="text-xs text-orange-500 mt-0.5 font-medium">PoC</div>
+                  <div className="text-xs text-orange-400">High EPSS</div>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+                  <div className="text-xl font-bold text-slate-700">
+                    {exploitStats.exploitation_status['None'] ?? (exploitStats.total_open - (exploitStats.exploitation_status['Active'] ?? 0) - (exploitStats.exploitation_status['PoC'] ?? 0))}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">None</div>
+                  <div className="text-xs text-slate-400">No known exploit</div>
+                </div>
+              </div>
+
+              {/* Exploit-no-patch highlight */}
+              {exploitStats.exploit_no_patch > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                  <Target size={18} className="text-rose-600 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold text-rose-700">
+                      {exploitStats.exploit_no_patch} findings with exploit but no patch
+                    </div>
+                    <div className="text-xs text-rose-500">Highest remediation priority — mitigate or isolate</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Patch coverage */}
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-500">Patch coverage</span>
+                  <span className="font-medium text-slate-700">
+                    {exploitStats.with_patch_available} / {exploitStats.with_public_exploit} exploitable have patches
+                  </span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-2 rounded-full bg-green-500 transition-all"
+                    style={{
+                      width: exploitStats.with_public_exploit > 0
+                        ? `${(exploitStats.with_patch_available / exploitStats.with_public_exploit) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Row 4: KEV Exposure + MTTR */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* KEV Exposure */}
         <div className="card p-5">
@@ -360,19 +571,15 @@ export default function Dashboard() {
           </div>
           {loading ? (
             <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="skeleton h-8 w-full" />
-              ))}
+              {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-8 w-full" />)}
             </div>
           ) : mttr.length === 0 ? (
-            <div className="text-slate-400 text-sm">No MTTR data available</div>
+            <div className="text-slate-400 text-sm">No MTTR data available — resolve some findings first</div>
           ) : (
             <div className="space-y-3">
               {mttr.map((m) => (
                 <div key={m.severity} className="flex items-center gap-3">
-                  <div className="w-16 text-xs font-medium text-slate-600 capitalize flex-shrink-0">
-                    {m.severity}
-                  </div>
+                  <div className="w-16 text-xs font-medium text-slate-600 capitalize flex-shrink-0">{m.severity}</div>
                   <div className="flex-1 bg-slate-100 rounded-full h-2">
                     <div
                       className="h-2 rounded-full transition-all"
@@ -385,9 +592,7 @@ export default function Dashboard() {
                   <div className="w-20 text-right text-sm font-semibold text-slate-700 flex-shrink-0">
                     {m.average_days.toFixed(1)}d
                   </div>
-                  <div className="w-16 text-right text-xs text-slate-400 flex-shrink-0">
-                    n={m.sample_size}
-                  </div>
+                  <div className="w-16 text-right text-xs text-slate-400 flex-shrink-0">n={m.sample_size}</div>
                 </div>
               ))}
             </div>
@@ -395,8 +600,92 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Row 4: Scanner Coverage */}
-      <div className="card p-5">
+      {/* Row 5: Top CWE + Attack Vectors */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* Top CWE Categories */}
+        <div className="card p-5">
+          <SectionTitle>Top CWE Weakness Categories</SectionTitle>
+          {loading ? (
+            <div className="h-48 skeleton" />
+          ) : !cweBarData.length ? (
+            <div className="h-48 flex items-center justify-center text-slate-400 text-sm">
+              No CWE data — run the pipeline with NVD enrichment
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={cweBarData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: '#64748b', fontFamily: 'monospace' }}
+                  tickLine={false}
+                  width={72}
+                />
+                <Tooltip
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                  formatter={(v: number) => [v.toLocaleString(), 'Findings']}
+                />
+                <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Attack Vector Breakdown */}
+        <div className="card p-5">
+          <SectionTitle>Attack Vector Breakdown</SectionTitle>
+          <p className="text-xs text-slate-400 -mt-2 mb-3">
+            Network-accessible vulnerabilities are the highest exploitation risk
+          </p>
+          {loading ? (
+            <div className="h-48 skeleton" />
+          ) : !vectorPieData.length ? (
+            <div className="h-48 flex items-center justify-center text-slate-400 text-sm">
+              No attack vector data available
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width="55%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={vectorPieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {vectorPieData.map((entry) => (
+                      <Cell key={entry.name} fill={VECTOR_COLORS[entry.name] ?? '#94a3b8'} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => [v.toLocaleString(), 'Findings']} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-col gap-2 flex-1">
+                {vectorPieData.map((entry) => (
+                  <div key={entry.name} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: VECTOR_COLORS[entry.name] ?? '#94a3b8' }}
+                      />
+                      <span className="text-sm text-slate-600">{entry.name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800">{entry.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Row 6: Scanner Coverage */}
+      <div className="card p-5 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <SectionTitle>Scanner Coverage</SectionTitle>
@@ -410,9 +699,7 @@ export default function Dashboard() {
         </div>
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="skeleton h-20" />
-            ))}
+            {[1, 2, 3].map((i) => <div key={i} className="skeleton h-20" />)}
           </div>
         ) : scanners.length === 0 ? (
           <div className="text-slate-400 text-sm">No scanner data available</div>
@@ -429,16 +716,10 @@ export default function Dashboard() {
                     <span className="text-slate-500">Findings</span>
                     <span className="font-medium text-slate-700">{s.finding_count.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Unique Assets</span>
-                    <span className="font-medium text-slate-700">{s.unique_assets.toLocaleString()}</span>
-                  </div>
                   {s.dedup_savings > 0 && (
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-500">Dedup Savings</span>
-                      <span className="font-medium text-green-600">
-                        -{s.dedup_savings.toLocaleString()}
-                      </span>
+                      <span className="font-medium text-green-600">-{s.dedup_savings.toLocaleString()}</span>
                     </div>
                   )}
                 </div>
@@ -449,16 +730,14 @@ export default function Dashboard() {
       </div>
 
       {/* SLA Compliance summary */}
-      <div className="card p-5 mt-4">
+      <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
           <SectionTitle>SLA Compliance by Severity</SectionTitle>
           <TrendingUp size={16} className="text-slate-400" />
         </div>
         {loading ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="skeleton h-24" />
-            ))}
+            {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-24" />)}
           </div>
         ) : sla.length === 0 ? (
           <div className="text-slate-400 text-sm">No SLA data available</div>
@@ -483,7 +762,8 @@ export default function Dashboard() {
                     className="h-1.5 rounded-full"
                     style={{
                       width: `${s.compliance_rate}%`,
-                      backgroundColor: s.compliance_rate >= 80 ? '#22c55e' : s.compliance_rate >= 60 ? '#eab308' : '#ef4444',
+                      backgroundColor:
+                        s.compliance_rate >= 80 ? '#22c55e' : s.compliance_rate >= 60 ? '#eab308' : '#ef4444',
                     }}
                   />
                 </div>

@@ -1,12 +1,15 @@
 """
-Auth router — JWT-based authentication using stdlib only.
+Auth router — JWT-based authentication.
 
-Default credentials are set via environment variables:
-  AUTH_USERNAME (default: admin)
-  AUTH_PASSWORD (default: warden-changeme)
+Credentials are read exclusively from environment variables. There are no
+hardcoded defaults that would be safe to use — the startup security check
+in api/main.py warns loudly (or blocks) if insecure values are detected.
 
-Set WARDEN_SECRET_KEY in .env to a strong random string in production.
-Generate one with: python3 -c "import secrets; print(secrets.token_hex(32))"
+  WARDEN_SECRET_KEY  — JWT signing key (min 32 chars, generate with secrets.token_hex(32))
+  AUTH_USERNAME      — Login username (default: admin)
+  AUTH_PASSWORD      — Login password (no safe default — set this before deploying)
+  AUTH_TOKEN_EXPIRE_MINUTES — Token lifetime in minutes (default: 480 / 8 hours)
+  AUTH_MAX_ATTEMPTS  — Failed login attempts before lockout (default: 10)
 """
 import hmac
 import os
@@ -27,7 +30,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 SECRET_KEY = os.getenv("WARDEN_SECRET_KEY", "dev-secret-change-in-production-please")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("AUTH_TOKEN_EXPIRE_MINUTES", "480"))  # 8 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("AUTH_TOKEN_EXPIRE_MINUTES", "480"))
 
 AUTH_USERNAME = os.getenv("AUTH_USERNAME", "admin")
 AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "warden-changeme")
@@ -35,7 +38,10 @@ AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "warden-changeme")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 # ── Brute-force protection ─────────────────────────────────────────────────────
-# Simple in-memory counter. For multi-worker deployments use Redis instead.
+# Per-IP attempt tracking in process memory.
+# NOTE: This is effective for single-container deployments. For multi-worker
+# or multi-replica production deployments, move this state to Redis so all
+# instances share the same counters.
 
 _lock = threading.Lock()
 _attempts: dict[str, list[float]] = defaultdict(list)
@@ -48,7 +54,6 @@ _LOCKOUT_SECONDS = 900  # 15-minute lockout after exceeding limit
 def _check_rate_limit(ip: str) -> None:
     now = time.time()
     with _lock:
-        # Prune old attempts outside the window
         _attempts[ip] = [t for t in _attempts[ip] if now - t < _WINDOW_SECONDS]
         if len(_attempts[ip]) >= _MAX_ATTEMPTS:
             oldest = _attempts[ip][0]
@@ -84,7 +89,7 @@ class UserInfo(BaseModel):
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _verify_credentials(username: str, password: str) -> bool:
-    """Constant-time comparison to prevent timing attacks."""
+    """Constant-time comparison to prevent timing-based credential enumeration."""
     username_ok = hmac.compare_digest(username.encode(), AUTH_USERNAME.encode())
     password_ok = hmac.compare_digest(password.encode(), AUTH_PASSWORD.encode())
     return username_ok and password_ok

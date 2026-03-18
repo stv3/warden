@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   User,
   KeyRound,
-  Clock,
   Shield,
   CheckCircle2,
   XCircle,
@@ -22,13 +21,6 @@ interface AccountInfo {
   session_ip: string | null;
 }
 
-interface TokenInfo {
-  algorithm: string;
-  token_lifetime_minutes: number;
-  expires_at: string | null;
-  seconds_remaining: number;
-  minutes_remaining: number;
-}
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('warden_token');
@@ -41,11 +33,6 @@ async function getAccountInfo(): Promise<AccountInfo> {
   return res.json();
 }
 
-async function getTokenInfo(): Promise<TokenInfo> {
-  const res = await fetch('/api/account/token-info', { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json();
-}
 
 async function changePassword(current: string, next: string): Promise<{ success: boolean; message: string }> {
   const res = await fetch('/api/account/password', {
@@ -107,7 +94,6 @@ function PasswordField({
 export default function Account() {
   const { user } = useAuth();
   const [info, setInfo] = useState<AccountInfo | null>(null);
-  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [currentPw, setCurrentPw] = useState('');
@@ -117,8 +103,8 @@ export default function Account() {
   const [pwResult, setPwResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   useEffect(() => {
-    Promise.all([getAccountInfo(), getTokenInfo()])
-      .then(([a, t]) => { setInfo(a); setTokenInfo(t); })
+    getAccountInfo()
+      .then(setInfo)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -144,15 +130,6 @@ export default function Account() {
       setPwSaving(false);
     }
   };
-
-  const formatDate = (iso: string | null) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString();
-  };
-
-  const progressPct = tokenInfo
-    ? Math.round((tokenInfo.seconds_remaining / (tokenInfo.token_lifetime_minutes * 60)) * 100)
-    : 0;
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -185,43 +162,6 @@ export default function Account() {
               }
             />
             <InfoRow label="Session IP" value={info?.session_ip ?? '—'} />
-          </section>
-
-          {/* Session */}
-          <section className="bg-white border border-slate-200 rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center">
-                <Clock size={18} className="text-amber-600" />
-              </div>
-              <h2 className="font-semibold text-slate-800">Session</h2>
-            </div>
-            <InfoRow label="Issued at" value={formatDate(info?.token_issued_at ?? null)} />
-            <InfoRow label="Expires at" value={formatDate(info?.token_expires_at ?? null)} />
-            <InfoRow
-              label="Time remaining"
-              value={
-                tokenInfo ? (
-                  <span className={tokenInfo.minutes_remaining < 30 ? 'text-red-600' : 'text-slate-800'}>
-                    {tokenInfo.minutes_remaining.toFixed(0)} min
-                  </span>
-                ) : '—'
-              }
-            />
-            {tokenInfo && (
-              <div className="mt-3">
-                <div className="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>Session life</span>
-                  <span>{progressPct}% remaining</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${progressPct > 30 ? 'bg-indigo-500' : 'bg-red-500'}`}
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            <InfoRow label="Token algorithm" value={tokenInfo?.algorithm ?? 'HS256'} />
           </section>
 
           {/* Change password */}
@@ -277,10 +217,7 @@ export default function Account() {
                 Update password
               </button>
 
-              <p className="text-xs text-slate-400">
-                Password is stored in <code className="bg-slate-100 px-1 rounded font-mono">.env</code> and
-                takes effect immediately. All active sessions remain valid until they expire.
-              </p>
+
             </div>
           </section>
         </>

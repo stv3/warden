@@ -26,6 +26,41 @@ export interface Finding {
   first_seen: string;
   last_seen: string;
   resolved_at: string | null;
+  // SSVC
+  ssvc_decision: 'Immediate' | 'Act' | 'Attend' | 'Track' | null;
+  ssvc_exploitation: 'Active' | 'PoC' | 'None' | null;
+  has_public_exploit: boolean;
+  // NVD enrichment
+  cwe_id: string | null;
+  nvd_published_date: string | null;
+  patch_available: boolean;
+  attack_vector: 'N' | 'A' | 'L' | 'P' | null;
+}
+
+export type SSVCDecision = 'Immediate' | 'Act' | 'Attend' | 'Track';
+
+export interface SSVCDistribution {
+  total: number;
+  distribution: Record<SSVCDecision, { count: number; percentage: number }>;
+  unscored: number;
+}
+
+export interface ExploitStats {
+  total_open: number;
+  with_public_exploit: number;
+  exploit_percentage: number;
+  exploitation_status: Record<string, number>;
+  with_patch_available: number;
+  exploit_no_patch: number;
+}
+
+export interface TopCWE {
+  top_cwe: Array<{ cwe_id: string; count: number }>;
+}
+
+export interface AttackVectorBreakdown {
+  total: number;
+  by_vector: Record<string, { count: number; percentage: number }>;
 }
 
 export interface KevExposureMetric {

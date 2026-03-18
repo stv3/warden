@@ -1,0 +1,25 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# docker-compose.selfsigned.yml — HTTPS overlay with self-signed certificate
+#
+# Use this when you need HTTPS but don't have a public domain for Let's Encrypt.
+# Appropriate for: local development, air-gapped networks, internal tools.
+#
+# Prerequisites:
+#   1. Generate the certificate first:
+#        ./scripts/generate-selfsigned-cert.sh [hostname]
+#
+#   2. Start Warden with HTTPS:
+#        docker compose -f docker-compose.yml -f docker-compose.selfsigned.yml up -d
+#
+# To trust the cert in Chrome/Firefox, import ssl/selfsigned/cert.pem into
+# your browser's or OS certificate store (see the script output for commands).
+# ──────────────────────────────────────────────────────────────────────────────
+services:
+  ui:
+    ports:
+      - "443:443"
+      - "80:80"    # kept for HTTP→HTTPS redirect
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx.selfsigned.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl/selfsigned:/etc/nginx/ssl:ro

@@ -4,6 +4,14 @@
 .env.*
 !.env.example
 
+# ── TLS / SSL certificates and private keys ───────────────────────────────────
+ssl/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
@@ -72,6 +80,11 @@ logs/
 # ── One-off scripts (dev only) ────────────────────────────────────────────────
 run_manual_test.py
 run_appsec_test.py
+
+# ── Celery runtime files ──────────────────────────────────────────────────────
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
 .DS_Store

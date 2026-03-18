@@ -1,25 +1,41 @@
 scoring:
   weights:
-    cvss_base: 0.3
-    kev_active: 0.4
-    asset_criticality: 0.2
-    epss_score: 0.1
-  kev_multiplier: 2.0
+    # Technical severity (35% combined)
+    cvss_base: 0.20           # CVSS base score normalized 0-1
+
+    # Threat intelligence (35% combined)
+    kev_active: 0.25          # CISA KEV: confirmed active exploitation (binary)
+    epss_score: 0.10          # FIRST EPSS: exploit probability in next 30 days (0-1)
+    exploit_available: 0.10   # Public PoC or active exploit exists (binary)
+
+    # Business context (15%)
+    asset_criticality: 0.15   # Asset criticality 1-5 normalized
+
+    # Prioritization framework (15%)
+    ssvc_priority: 0.15       # SSVC decision: Immediate=1.0, Act=0.75, Attend=0.5, Track=0
+
+  # KEV multiplier: active exploitation changes the urgency calculus.
+  # Applied on top of the weighted sum to ensure KEV findings are always escalated.
+  kev_multiplier: 1.8
+
   severity_thresholds:
     critical: 8.0
     high: 6.0
     medium: 4.0
     low: 0.0
+
 asset_criticality:
   production: 5
   staging: 3
   development: 1
   unknown: 2
+
 sla_days:
   critical: 15
   high: 30
   medium: 90
   low: 180
+
 nist_csf_mapping:
   network:
   - ID.AM-1
@@ -37,6 +53,7 @@ nist_csf_mapping:
   - PR.IP-1
   - PR.IP-3
   - DE.CM-7
+
 cis_controls_mapping:
   network:
   - CIS-7
@@ -49,6 +66,7 @@ cis_controls_mapping:
   configuration:
   - CIS-4
   - CIS-7
+
 connectors:
   tenable: true
   qualys: true

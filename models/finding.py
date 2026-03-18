@@ -43,6 +43,17 @@ class Finding(Base):
     kev_due_date = Column(Date, nullable=True)
     kev_ransomware_use = Column(String(10), nullable=True)  # "Known" | "Unknown"
 
+    # SSVC (Stakeholder-Specific Vulnerability Categorization)
+    ssvc_decision = Column(String(20), nullable=True, index=True)    # Immediate | Act | Attend | Track
+    ssvc_exploitation = Column(String(10), nullable=True)            # Active | PoC | None
+    has_public_exploit = Column(Boolean, default=False, index=True)  # True if PoC or Active
+
+    # NVD enrichment
+    cwe_id = Column(String(20), nullable=True)                 # e.g. CWE-79
+    nvd_published_date = Column(Date, nullable=True)           # Original CVE disclosure date
+    patch_available = Column(Boolean, default=False)           # Has vendor patch/fix
+    attack_vector = Column(String(5), nullable=True)           # N | A | L | P (from CVSS)
+
     # Compliance mapping
     nist_csf_controls = Column(JSON, default=list)
     cis_controls = Column(JSON, default=list)

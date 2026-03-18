@@ -3,6 +3,8 @@
 # Warden
 
 **Open-source vulnerability management orchestrator**
+<img width="1578" height="942" alt="Captura de pantalla 2026-03-17 a la(s) 7 26 30 p m" src="https://github.com/user-attachments/assets/dacc8b14-f033-4cec-a951-de68515fce59" />
+
 
 Aggregate findings from every scanner you run, deduplicate across sources, enrich with real-world threat context, and surface a single prioritized list — so your team remediates what matters most, not just what scanned last.
 
@@ -21,6 +23,9 @@ Aggregate findings from every scanner you run, deduplicate across sources, enric
 Most organizations run 3–5 vulnerability scanners. Each one produces its own findings list, its own severity ratings, its own duplicates. Triaging that noise manually doesn't scale.
 
 Warden connects to your existing scanners, merges their output into one deduplicated view, and scores each finding using six signals — CVSS, CISA KEV status, EPSS, SSVC decision, exploit availability, and asset criticality — so your security team has a clear, defensible answer to "fix this first."
+<img width="1565" height="937" alt="Captura de pantalla 2026-03-17 a la(s) 7 26 03 p m" src="https://github.com/user-attachments/assets/1b0f1178-1eb8-455f-95ba-c7a43323c877" />
+
+
 
 ---
 

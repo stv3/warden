@@ -59,6 +59,12 @@ zap_report.xml
 zap_report.json
 zap_*.json
 zap_*.html
+burp_report.xml
+burp_report.json
+nuclei_report.json
+trivy_report.json
+*.sarif
+*.sarif.json
 
 # ── SQLite test / dev databases ────────────────────────────────────────────────
 *.db

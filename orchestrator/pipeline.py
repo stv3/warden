@@ -16,6 +16,11 @@ from connectors.rapid7 import Rapid7Connector
 from connectors.sast import SASTConnector
 from connectors.sca import SCAConnector
 from connectors.dast import DASTConnector
+from connectors.burp import BurpConnector
+from connectors.sarif import SARIFConnector
+from connectors.nuclei import NucleiConnector
+from connectors.trivy import TrivyConnector
+from connectors.greynoise import GreyNoiseEnricher
 from core.deduplicator import upsert_findings
 from core.kev_matcher import KEVMatcher
 from core.risk_engine import RiskEngine, EPSSEnricher
@@ -41,6 +46,7 @@ class IngestionPipeline:
         self._epss = EPSSEnricher()
         self._ssvc = SSVCEngine()
         self._nvd = NVDEnricher(api_key=getattr(settings, "nvd_api_key", None))
+        self._greynoise = GreyNoiseEnricher(api_key=getattr(settings, "greynoise_api_key", None))
         self._alert_manager = AlertManager()
         self._ticket_manager = TicketManager()
 
@@ -85,6 +91,10 @@ class IngestionPipeline:
             self._nvd.enrich(all_open)
             self._db.commit()
             results["nvd_enriched"] = len([f for f in all_open if f.cwe_id or f.nvd_published_date])
+
+            # 5c-extra. GreyNoise enrichment — CVE scanning/exploitation in the wild
+            self._greynoise.enrich(all_open)
+            self._db.commit()
 
             # 5c. SSVC scoring — compute prioritization decision for each finding
             self._ssvc.score_all(all_open)
@@ -265,6 +275,49 @@ class IngestionPipeline:
                 logger.info(f"DAST: {len(findings)} findings")
             except Exception as e:
                 logger.error(f"DAST ingestion failed: {e}")
+
+        burp_xml = Path("burp_report.xml")
+        burp_json = Path("burp_report.json")
+        if burp_xml.exists() or burp_json.exists():
+            try:
+                connector = BurpConnector(
+                    xml_file=str(burp_xml),
+                    json_file=str(burp_json) if burp_json.exists() else None,
+                )
+                findings = connector.fetch_findings()
+                all_findings.extend(findings)
+                logger.info(f"Burp: {len(findings)} findings")
+            except Exception as e:
+                logger.error(f"Burp ingestion failed: {e}")
+
+        sarif_connector = SARIFConnector(search_dir=".")
+        if sarif_connector.test_connection():
+            try:
+                findings = sarif_connector.fetch_findings()
+                all_findings.extend(findings)
+                logger.info(f"SARIF: {len(findings)} findings")
+            except Exception as e:
+                logger.error(f"SARIF ingestion failed: {e}")
+
+        nuclei_file = Path("nuclei_report.json")
+        if nuclei_file.exists():
+            try:
+                connector = NucleiConnector(report_file=str(nuclei_file))
+                findings = connector.fetch_findings()
+                all_findings.extend(findings)
+                logger.info(f"Nuclei: {len(findings)} findings")
+            except Exception as e:
+                logger.error(f"Nuclei ingestion failed: {e}")
+
+        trivy_file = Path("trivy_report.json")
+        if trivy_file.exists():
+            try:
+                connector = TrivyConnector(report_file=str(trivy_file))
+                findings = connector.fetch_findings()
+                all_findings.extend(findings)
+                logger.info(f"Trivy: {len(findings)} findings")
+            except Exception as e:
+                logger.error(f"Trivy ingestion failed: {e}")
 
         return all_findings
 

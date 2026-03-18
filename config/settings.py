@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     rapid7_api_key: Optional[str] = None
     rapid7_site_id: Optional[str] = None             # optional: scope to a single site
 
+    # GreyNoise CVE Intelligence
+    # Optional API key — without it GreyNoise enrichment is skipped.
+    # Get a key at https://www.greynoise.io/plans (free community tier available)
+    greynoise_api_key: Optional[str] = None
+
     # Risk model config path
     risk_model_path: str = "config/risk_model.yaml"
 

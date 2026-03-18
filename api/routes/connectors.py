@@ -34,9 +34,12 @@ _MAX_UPLOAD_BYTES = 50 * 1024 * 1024   # 50 MB
 
 # Exact filenames each file-based connector will accept
 ALLOWED_INPUT_FILES: dict[str, set[str]] = {
-    "sast": {"bandit_results.json", "semgrep_results.json"},
-    "sca":  {"requirements.txt"},
-    "dast": {"zap_report.xml", "zap_report.json"},
+    "sast":   {"bandit_results.json", "semgrep_results.json"},
+    "sca":    {"requirements.txt"},
+    "dast":   {"zap_report.xml", "zap_report.json"},
+    "burp":   {"burp_report.xml", "burp_report.json"},
+    "nuclei": {"nuclei_report.json"},
+    "trivy":  {"trivy_report.json"},
 }
 
 _ALLOWED_EXTENSIONS = {".json", ".xml", ".txt"}
@@ -87,6 +90,9 @@ CONNECTOR_FIELDS: dict[str, list[dict]] = {
     "slack": [
         {"key": "SLACK_WEBHOOK_URL",  "label": "Webhook URL",   "type": "url",  "placeholder": "https://hooks.slack.com/services/...", "required": True},
         {"key": "SLACK_KEV_CHANNEL",  "label": "Channel",       "type": "text", "placeholder": "#vuln-kev-alerts",                    "required": False},
+    ],
+    "greynoise": [
+        {"key": "GREYNOISE_API_KEY", "label": "API Key", "type": "password", "placeholder": "", "required": False},
     ],
 }
 
@@ -180,6 +186,7 @@ def _reload_settings(new_values: dict[str, str]) -> None:
         "RAPID7_URL":                 "rapid7_url",
         "RAPID7_API_KEY":             "rapid7_api_key",
         "RAPID7_SITE_ID":             "rapid7_site_id",
+        "GREYNOISE_API_KEY":          "greynoise_api_key",
     }
     for env_key, value in new_values.items():
         attr = mapping.get(env_key)
@@ -214,6 +221,7 @@ def _build_catalogue(db) -> list[dict]:
     rapid7_ok      = bool(settings.rapid7_url and settings.rapid7_api_key)
     jira_ok        = bool(settings.jira_url and settings.jira_api_token and settings.jira_project_key)
     slack_ok       = bool(settings.slack_webhook_url)
+    greynoise_ok   = bool(getattr(settings, "greynoise_api_key", None))
 
     current_env = _read_env()
 
@@ -308,10 +316,23 @@ def _build_catalogue(db) -> list[dict]:
             "configured": True,
             "testable": False,
             "configurable": False,
-            "finding_count": _finding_count(db, "sast"),
+            "finding_count": _finding_count(db, "bandit") + _finding_count(db, "semgrep"),
             "fields": [],
             "input_files": ["bandit_results.json", "semgrep_results.json"],
             "docs_url": "https://bandit.readthedocs.io/",
+        },
+        {
+            "name": "sarif",
+            "label": "SARIF (CodeQL / Checkmarx / ESLint…)",
+            "category": "appsec",
+            "description": "Generic SARIF 2.1.0 parser. Covers CodeQL, Checkmarx, ESLint Security, Semgrep --sarif, and any other SARIF-compatible tool. Drop any *.sarif file into the project root.",
+            "configured": True,
+            "testable": False,
+            "configurable": False,
+            "finding_count": _finding_count(db, "sarif_codeql") + _finding_count(db, "sarif_checkmarx") + _finding_count(db, "sarif_eslint"),
+            "fields": [],
+            "input_files": ["<any>.sarif", "<any>.sarif.json"],
+            "docs_url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/",
         },
         {
             "name": "sca",
@@ -334,10 +355,49 @@ def _build_catalogue(db) -> list[dict]:
             "configured": True,
             "testable": False,
             "configurable": False,
-            "finding_count": _finding_count(db, "dast"),
+            "finding_count": _finding_count(db, "zap"),
             "fields": [],
             "input_files": ["zap_report.xml", "zap_report.json"],
             "docs_url": "https://www.zaproxy.org/docs/",
+        },
+        {
+            "name": "burp",
+            "label": "Burp Suite (Pro / Enterprise)",
+            "category": "appsec",
+            "description": "Industry-standard DAST. Export a scan from Burp Pro (File → Save copy → XML) or Burp Enterprise (API) and drop burp_report.xml or burp_report.json in the project root.",
+            "configured": True,
+            "testable": False,
+            "configurable": False,
+            "finding_count": _finding_count(db, "burp"),
+            "fields": [],
+            "input_files": ["burp_report.xml", "burp_report.json"],
+            "docs_url": "https://portswigger.net/burp/documentation/desktop/getting-started/generating-reports",
+        },
+        {
+            "name": "nuclei",
+            "label": "Nuclei",
+            "category": "appsec",
+            "description": "Fast, community-powered vulnerability scanner with 8 000+ templates covering CVEs, misconfigurations, and exposed panels. Run: nuclei -l targets.txt -je nuclei_report.json",
+            "configured": True,
+            "testable": False,
+            "configurable": False,
+            "finding_count": _finding_count(db, "nuclei"),
+            "fields": [],
+            "input_files": ["nuclei_report.json"],
+            "docs_url": "https://docs.projectdiscovery.io/tools/nuclei/overview",
+        },
+        {
+            "name": "trivy",
+            "label": "Trivy (containers / IaC / git)",
+            "category": "appsec",
+            "description": "All-in-one scanner for container images, filesystems, git repositories, Kubernetes manifests, and Terraform. Run: trivy image --format json -o trivy_report.json <image>",
+            "configured": True,
+            "testable": False,
+            "configurable": False,
+            "finding_count": _finding_count(db, "trivy"),
+            "fields": [],
+            "input_files": ["trivy_report.json"],
+            "docs_url": "https://aquasecurity.github.io/trivy/",
         },
         # ── Threat Feeds ───────────────────────────────────────────────────
         {
@@ -351,6 +411,18 @@ def _build_catalogue(db) -> list[dict]:
             "finding_count": 0,
             "fields": [],
             "docs_url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        },
+        {
+            "name": "greynoise",
+            "label": "GreyNoise CVE Intelligence",
+            "category": "feed",
+            "description": "Enriches findings with internet-wide CVE scanning activity. Sets has_public_exploit=true for CVEs actively exploited by malicious scanners. Requires an API key.",
+            "configured": greynoise_ok,
+            "testable": False,
+            "configurable": True,
+            "finding_count": 0,
+            "fields": fields_with_values("greynoise"),
+            "docs_url": "https://docs.greynoise.io/reference/get_v3-cve-cve-id",
         },
         # ── Integrations ───────────────────────────────────────────────────
         {

@@ -65,7 +65,8 @@ Open `.env` and set **four values** before starting:
 | `WARDEN_SECRET_KEY` | Run `python3 -c "import secrets; print(secrets.token_hex(32))"` and paste the output |
 | `AUTH_PASSWORD` | Any strong password — this is your login password |
 | `POSTGRES_PASSWORD` | Any strong password for the database |
-| `DATABASE_URL` | Update the password in the URL to match `POSTGRES_PASSWORD` |
+
+> `DATABASE_URL` is assembled automatically from `POSTGRES_PASSWORD` — you don't need to touch it.
 
 ```bash
 # 2. Build and start (first run takes ~3 min to build the frontend)
@@ -149,7 +150,7 @@ All settings are environment variables. Copy `.env.example` to `.env` to get sta
 |---|---|
 | `WARDEN_SECRET_KEY` | JWT signing key — generate with `secrets.token_hex(32)` |
 | `AUTH_PASSWORD` | Dashboard login password |
-| `POSTGRES_PASSWORD` / `DATABASE_URL` | Database credentials (keep both in sync) |
+| `POSTGRES_PASSWORD` | Database password — `DATABASE_URL` is auto-assembled from this |
 | `WARDEN_ENV` | `development` (warnings only) or `production` (blocks insecure defaults at startup) |
 
 **Port configuration:**
@@ -300,6 +301,13 @@ To report a vulnerability, open a GitHub issue marked `[security]` or contact th
 ---
 
 ## Troubleshooting
+
+**API exits with `password authentication failed for user "vuln"`**
+The Postgres volume was initialized with a different password than what's in `.env` now. Wipe it and restart:
+```bash
+docker compose down -v   # -v removes the postgres volume
+docker compose up -d --build
+```
 
 **`docker compose up` exits immediately / API won't start**
 Check that `.env` exists and `WARDEN_SECRET_KEY`, `AUTH_PASSWORD`, and `POSTGRES_PASSWORD` are all set. If `WARDEN_ENV=production`, Warden blocks startup with weak or default credentials — set strong values or switch to `WARDEN_ENV=development` for local testing.

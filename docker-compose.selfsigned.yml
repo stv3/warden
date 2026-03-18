@@ -17,8 +17,8 @@
 services:
   ui:
     ports:
-      - "443:443"
-      - "80:80"    # kept for HTTP→HTTPS redirect
+      - "${WARDEN_HTTPS_PORT:-443}:443"
+      - "${WARDEN_HTTP_PORT:-80}:80"    # kept for HTTP→HTTPS redirect
     volumes:
       - ./nginx.selfsigned.conf:/etc/nginx/conf.d/default.conf:ro
       - ./ssl/selfsigned:/etc/nginx/ssl:ro

@@ -51,9 +51,21 @@ export async function login(username: string, password: string): Promise<AuthTok
   const form = new FormData();
   form.append('username', username);
   form.append('password', password);
-  const res = await fetch(`${BASE_URL}/auth/token`, { method: 'POST', body: form });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/token`, { method: 'POST', body: form });
+  } catch {
+    throw new Error('Cannot reach the API. Check that Warden is running and CORS_ORIGINS includes this origin.');
+  }
+  if (res.status === 401) {
+    throw new Error('Invalid credentials. Check your username and password in .env (AUTH_USERNAME / AUTH_PASSWORD).');
+  }
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({})) as { detail?: string };
+    throw new Error(data.detail ?? 'Too many login attempts. Please wait before trying again.');
+  }
   if (!res.ok) {
-    throw new Error('Invalid credentials');
+    throw new Error(`Login failed (${res.status}). Check docker compose logs api for details.`);
   }
   return res.json() as Promise<AuthToken>;
 }

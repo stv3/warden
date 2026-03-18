@@ -35,7 +35,14 @@ app = FastAPI(
 # ── CORS ────────────────────────────────────────────────────────────────────────
 # Read allowed origins from env so operators can configure without code changes.
 # Example: CORS_ORIGINS=https://warden.example.com,https://dashboard.example.com
-_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3001")
+#
+# If CORS_ORIGINS is not set, auto-derive origins from WARDEN_HTTP_PORT /
+# WARDEN_HTTPS_PORT so that custom port mappings work without extra config.
+_http_port = int(os.getenv("WARDEN_HTTP_PORT", "80"))
+_https_port = int(os.getenv("WARDEN_HTTPS_PORT", "443"))
+_http_origin = f"http://localhost{'' if _http_port == 80 else f':{_http_port}'}"
+_https_origin = f"https://localhost{'' if _https_port == 443 else f':{_https_port}'}"
+_raw_origins = os.getenv("CORS_ORIGINS", f"{_http_origin},{_https_origin}")
 _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(

@@ -56,22 +56,29 @@ cd warden
 
 # 1. Configure environment
 cp .env.example .env
-# Open .env and set these three values:
-#   WARDEN_SECRET_KEY  — generate one:
-#     python3 -c "import secrets; print(secrets.token_hex(32))"
-#   AUTH_PASSWORD      — any strong password
-#   POSTGRES_PASSWORD  — any strong password
-#   (update POSTGRES_PASSWORD in DATABASE_URL to match)
+```
 
+Open `.env` and set **four values** before starting:
+
+| Variable | What to set |
+|---|---|
+| `WARDEN_SECRET_KEY` | Run `python3 -c "import secrets; print(secrets.token_hex(32))"` and paste the output |
+| `AUTH_PASSWORD` | Any strong password — this is your login password |
+| `POSTGRES_PASSWORD` | Any strong password for the database |
+| `DATABASE_URL` | Update the password in the URL to match `POSTGRES_PASSWORD` |
+
+```bash
 # 2. Build and start (first run takes ~3 min to build the frontend)
 docker compose up -d --build
 
 # 3. Open the dashboard
 # http://localhost
-# Login: admin / <AUTH_PASSWORD you set>
+# Login: admin / <AUTH_PASSWORD you set in step 1>
 ```
 
 Postgres and Redis are included in the compose file — no external dependencies.
+
+> **Port 80 already in use?** Set `WARDEN_HTTP_PORT=8080` (or any free port) in `.env`, then restart. Access Warden at `http://localhost:8080`. CORS is auto-configured — no extra steps needed.
 
 ### HTTPS (self-signed, for private/internal networks)
 
@@ -80,8 +87,10 @@ Postgres and Redis are included in the compose file — no external dependencies
 ./scripts/generate-selfsigned-cert.sh            # defaults to localhost
 ./scripts/generate-selfsigned-cert.sh 192.168.1.50  # or a specific IP/hostname
 
-# 2. Build and start with HTTPS
+# 2. Build and start with HTTPS (must include the selfsigned overlay)
 docker compose -f docker-compose.yml -f docker-compose.selfsigned.yml up -d --build
+
+# Dashboard at https://localhost  (accept the browser warning for self-signed certs)
 ```
 
 > The first run builds the frontend image (~3 min). Subsequent starts are instant.
@@ -140,9 +149,16 @@ All settings are environment variables. Copy `.env.example` to `.env` to get sta
 |---|---|
 | `WARDEN_SECRET_KEY` | JWT signing key — generate with `secrets.token_hex(32)` |
 | `AUTH_PASSWORD` | Dashboard login password |
-| `POSTGRES_PASSWORD` / `DATABASE_URL` | Database credentials |
-| `CORS_ORIGINS` | Comma-separated allowed origins — default `http://localhost,https://localhost` |
+| `POSTGRES_PASSWORD` / `DATABASE_URL` | Database credentials (keep both in sync) |
 | `WARDEN_ENV` | `development` (warnings only) or `production` (blocks insecure defaults at startup) |
+
+**Port configuration:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `WARDEN_HTTP_PORT` | `80` | Host port for the HTTP UI — change if 80 is already in use |
+| `WARDEN_HTTPS_PORT` | `443` | Host port for HTTPS (selfsigned/Let's Encrypt overlay) |
+| `CORS_ORIGINS` | auto | Computed from the port vars above — only override for non-localhost deployments |
 
 **Scanner credentials** (configure only what you use):
 
@@ -291,21 +307,32 @@ Check that `.env` exists and `WARDEN_SECRET_KEY`, `AUTH_PASSWORD`, and `POSTGRES
 **Dashboard shows a blank page or 403**
 The frontend image needs to be built first. Run `docker compose up -d --build` — Docker builds the React app during the first start (takes ~3 minutes). Subsequent starts are instant.
 
-**Login says "Invalid credentials" but password is correct**
-The browser request is likely blocked by CORS. Check that `CORS_ORIGINS` in your `.env` includes the exact origin you're accessing from (e.g. `http://localhost` or `https://localhost`). Restart the API after changing it: `docker compose restart api`.
+**Port 80 is already in use (`bind: address already in use`)**
+Another service (nginx, Apache, another Docker container) is using port 80. Set `WARDEN_HTTP_PORT=8080` (or any free port) in `.env`, then:
+```bash
+docker compose up -d --build
+# Access Warden at http://localhost:8080
+```
+CORS is auto-computed from the port — no other changes needed.
 
-**Browser shows "connection refused"**
+**Login says "Invalid credentials"**
+Check that you're using the password you set in `.env` as `AUTH_PASSWORD`. The username is always `admin` (or whatever `AUTH_USERNAME` is set to). If you never edited `AUTH_PASSWORD`, the value is `change-me-use-a-strong-password` from the example file — update it and restart: `docker compose restart api`.
+
+If the error message says "Cannot reach the API", the issue is CORS or the API container is down — see the next two entries.
+
+**Browser shows "connection refused" or "Cannot reach the API"**
 Run `docker compose ps` — the API container may have exited. Check `docker compose logs api` for the error. Common causes: missing `.env`, wrong `DATABASE_URL` hostname (must be `db`, not `localhost`), or `POSTGRES_PASSWORD` not set.
 
 **After restarting the API, login stops working (502)**
 Restarting the API assigns it a new internal IP. nginx caches the old one. Fix: `docker compose restart ui` immediately after `docker compose restart api`.
 
 **HTTPS returns 502 or connection refused**
-Make sure you started with both compose files:
+Plain `docker compose up` only binds port 80 — HTTPS requires the selfsigned overlay:
 ```bash
+./scripts/generate-selfsigned-cert.sh   # only needed once
 docker compose -f docker-compose.yml -f docker-compose.selfsigned.yml up -d --build
+# Dashboard at https://localhost
 ```
-Plain `docker compose up` only binds port 80.
 
 **Self-signed certificate browser warning**
 This is expected — you need to trust the cert once. See the output of `./scripts/generate-selfsigned-cert.sh` for OS-specific trust commands (macOS Keychain / Linux `update-ca-certificates`).
